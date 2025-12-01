@@ -30,7 +30,7 @@ private:
     float m_deltaTime{0.0f};
     float m_lastFrame{0.0f};
 
-    Camera m_camera{glm::vec3(8.0f, 5.0f, 8.0f)};
+    Camera m_camera{glm::vec3(6.5f, 5.0f, 10.0f), -135.0f, -20.0f};
     PlayerController m_playerController{m_camera};
     double m_lastMouseX{0.0};
     double m_lastMouseY{0.0};
