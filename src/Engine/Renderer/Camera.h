@@ -6,7 +6,8 @@
 
 class Camera {
 public:
-    explicit Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 3.0f));
+    explicit Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 3.0f), float yaw = -90.0f,
+                    float pitch = 0.0f);
 
     glm::mat4 getViewMatrix() const;
     glm::mat4 getProjectionMatrix(float width, float height) const;
