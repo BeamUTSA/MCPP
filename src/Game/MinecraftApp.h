@@ -36,7 +36,7 @@ private:
     double m_lastMouseY{0.0};
     bool m_firstMouse{true};
 
-    Shader m_shader;
+    std::unique_ptr<Shader> m_shader;
     std::vector<std::unique_ptr<Chunk>> m_chunks;
 
     ImGuiLayer m_imguiLayer;

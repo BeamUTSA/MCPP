@@ -1,3 +1,5 @@
+#define GLM_ENABLE_EXPERIMENTAL
+
 #include "Game/Player/PlayerController.h"
 
 #include <algorithm>
