@@ -17,6 +17,7 @@ option(ENABLE_LTO "Enable Link Time Optimization (Release only)" ON)
 add_executable(${PROJECT_NAME}
     src/main.cpp
     src/Game/MinecraftApp.cpp
+    src/Game/Player/PlayerController.cpp
     src/Engine/ImGui/ImGuiLayer.cpp
     src/Engine/Renderer/Camera.cpp
     src/Engine/Renderer/Shader.cpp

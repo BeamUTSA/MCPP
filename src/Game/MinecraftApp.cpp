@@ -32,6 +32,8 @@ bool MinecraftApp::init() {
     glfwSetCursorPosCallback(m_window, mouseCallback);
     glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
+    m_playerController.setWindow(m_window);
+
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
         std::cerr << "Failed to initialize GLAD" << std::endl;
         return false;
@@ -67,6 +69,7 @@ void MinecraftApp::run() {
         m_imguiLayer.beginFrame();
         renderFrame();
         m_imguiLayer.renderDockspace();
+        m_playerController.renderImGui();
         m_imguiLayer.renderPerformanceOverlay(m_deltaTime);
         m_imguiLayer.endFrame();
 
@@ -104,7 +107,7 @@ void MinecraftApp::mouseCallback(GLFWwindow* window, double xpos, double ypos) {
     app->m_lastMouseX = xpos;
     app->m_lastMouseY = ypos;
 
-    app->m_camera.processMouseMovement(xoffset, yoffset);
+    app->m_playerController.onMouseMoved(xoffset, yoffset);
 }
 
 void MinecraftApp::processInput() {
@@ -112,7 +115,7 @@ void MinecraftApp::processInput() {
         glfwSetWindowShouldClose(m_window, true);
     }
 
-    m_camera.processKeyboard(m_window, m_deltaTime);
+    m_playerController.update(m_deltaTime);
 }
 
 void MinecraftApp::renderFrame() {
