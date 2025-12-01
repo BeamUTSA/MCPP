@@ -41,6 +41,8 @@ bool MinecraftApp::init() {
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
 
+    m_imguiLayer.init(m_window);
+
     m_shader = Shader{"assets/shaders/core/vertex.glsl", "assets/shaders/core/fragment.glsl"};
 
     for (int x = 0; x < 3; ++x) {
@@ -61,12 +63,18 @@ void MinecraftApp::run() {
         m_lastFrame = currentFrame;
 
         processInput();
+
+        m_imguiLayer.beginFrame();
         renderFrame();
+        m_imguiLayer.renderDockspace();
+        m_imguiLayer.renderPerformanceOverlay(m_deltaTime);
+        m_imguiLayer.endFrame();
 
         glfwSwapBuffers(m_window);
         glfwPollEvents();
     }
 
+    m_imguiLayer.shutdown();
     m_chunks.clear();
     glfwTerminate();
 }

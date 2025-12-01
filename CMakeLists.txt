@@ -17,6 +17,7 @@ option(ENABLE_LTO "Enable Link Time Optimization (Release only)" ON)
 add_executable(${PROJECT_NAME}
     src/main.cpp
     src/Game/MinecraftApp.cpp
+    src/Engine/ImGui/ImGuiLayer.cpp
     src/Engine/Renderer/Camera.cpp
     src/Engine/Renderer/Shader.cpp
     src/Game/World/Chunk.cpp
@@ -48,14 +49,49 @@ endif()
 add_library(glad vendor/glad/src/glad.c)
 target_include_directories(glad PUBLIC vendor/glad/include)
 
+set(GLM_DIR "${CMAKE_SOURCE_DIR}/vendor/glm")
+if (NOT EXISTS "${GLM_DIR}/glm/glm.hpp")
+    message(STATUS "Fetching GLM (vendor folder missing headers)")
+    FetchContent_Declare(
+            glm
+            GIT_REPOSITORY https://github.com/g-truc/glm.git
+            GIT_TAG 1.0.1
+    )
+    FetchContent_MakeAvailable(glm)
+    set(GLM_DIR "${glm_SOURCE_DIR}")
+endif()
+
+set(IMGUI_DIR "${CMAKE_SOURCE_DIR}/vendor/imgui")
+if (NOT EXISTS "${IMGUI_DIR}/imgui.cpp")
+    message(STATUS "Fetching ImGui (vendor folder missing sources)")
+    FetchContent_Declare(
+            imgui
+            GIT_REPOSITORY https://github.com/ocornut/imgui.git
+            GIT_TAG docking
+    )
+    FetchContent_MakeAvailable(imgui)
+    set(IMGUI_DIR "${imgui_SOURCE_DIR}")
+endif()
+
 set(PROJECT_INCLUDES
     src
     vendor/glad/include
-    vendor/glm
+    ${GLM_DIR}
     vendor/glfw/include
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_INCLUDES})
+
+target_sources(${PROJECT_NAME} PRIVATE
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     glfw
@@ -63,13 +99,15 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 if (UNIX AND NOT APPLE)
-    target_link_libraries(${PROJECT_NAME} PRIVATE GL dl pthread)
+    find_package(X11 REQUIRED)
+    target_link_libraries(${PROJECT_NAME} PRIVATE GL dl pthread X11 Xi Xrandr Xinerama Xcursor)
 elseif (WIN32)
     target_link_libraries(${PROJECT_NAME} PRIVATE opengl32)
 endif()
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     _CRT_SECURE_NO_WARNINGS
+    IMGUI_IMPL_OPENGL_LOADER_GLAD
 )
 
 # --------------------------------------------------------------------

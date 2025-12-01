@@ -1,0 +1,15 @@
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+*.o
+*.obj
+*.pch
+*.pdb
+*.dll
+*.exe
+*.ilk
+*.log
+*.swp
+*.zip
+.DS_Store
