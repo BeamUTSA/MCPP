@@ -8,6 +8,7 @@
 #include "Engine/Renderer/Camera.h"
 #include "Engine/Renderer/Shader.h"
 #include "Engine/ImGui/ImGuiLayer.hpp"
+#include "Game/Player/PlayerController.h"
 #include "Game/World/Chunk.h"
 
 class MinecraftApp {
@@ -30,6 +31,7 @@ private:
     float m_lastFrame{0.0f};
 
     Camera m_camera{glm::vec3(8.0f, 5.0f, 8.0f)};
+    PlayerController m_playerController{m_camera};
     double m_lastMouseX{0.0};
     double m_lastMouseY{0.0};
     bool m_firstMouse{true};

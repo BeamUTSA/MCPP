@@ -15,22 +15,6 @@ glm::mat4 Camera::getProjectionMatrix(float width, float height) const {
     return glm::perspective(glm::radians(m_fov), aspect, 0.1f, 500.0f);
 }
 
-void Camera::processKeyboard(GLFWwindow* window, float deltaTime) {
-    float velocity = m_moveSpeed * deltaTime;
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        m_position += m_front * velocity;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        m_position -= m_front * velocity;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        m_position -= m_right * velocity;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        m_position += m_right * velocity;
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-        m_position += m_up * velocity;
-    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-        m_position -= m_up * velocity;
-}
-
 void Camera::processMouseMovement(float xoffset, float yoffset) {
     xoffset *= m_mouseSensitivity;
     yoffset *= m_mouseSensitivity;
@@ -42,6 +26,10 @@ void Camera::processMouseMovement(float xoffset, float yoffset) {
     if (m_pitch < -89.0f) m_pitch = -89.0f;
 
     updateVectors();
+}
+
+void Camera::translate(const glm::vec3& delta) {
+    m_position += delta;
 }
 
 void Camera::updateVectors() {

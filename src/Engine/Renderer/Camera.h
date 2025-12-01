@@ -11,8 +11,19 @@ public:
     glm::mat4 getViewMatrix() const;
     glm::mat4 getProjectionMatrix(float width, float height) const;
 
-    void processKeyboard(GLFWwindow* window, float deltaTime);
     void processMouseMovement(float xoffset, float yoffset);
+    void translate(const glm::vec3& delta);
+
+    [[nodiscard]] const glm::vec3& getPosition() const { return m_position; }
+    [[nodiscard]] const glm::vec3& getFront() const { return m_front; }
+    [[nodiscard]] const glm::vec3& getRight() const { return m_right; }
+    [[nodiscard]] const glm::vec3& getUp() const { return m_up; }
+
+    [[nodiscard]] float getFov() const { return m_fov; }
+    void setFov(float fovDegrees) { m_fov = fovDegrees; }
+
+    [[nodiscard]] float getMouseSensitivity() const { return m_mouseSensitivity; }
+    void setMouseSensitivity(float sensitivity) { m_mouseSensitivity = sensitivity; }
 
 private:
     void updateVectors();
