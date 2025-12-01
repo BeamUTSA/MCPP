@@ -1,6 +1,7 @@
 #include "Game/MinecraftApp.h"
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <algorithm>
 #include <iostream>
 
 namespace {
