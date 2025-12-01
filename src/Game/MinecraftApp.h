@@ -7,6 +7,7 @@
 
 #include "Engine/Renderer/Camera.h"
 #include "Engine/Renderer/Shader.h"
+#include "Engine/ImGui/ImGuiLayer.hpp"
 #include "Game/World/Chunk.h"
 
 class MinecraftApp {
@@ -35,4 +36,6 @@ private:
 
     Shader m_shader;
     std::vector<std::unique_ptr<Chunk>> m_chunks;
+
+    ImGuiLayer m_imguiLayer;
 };
