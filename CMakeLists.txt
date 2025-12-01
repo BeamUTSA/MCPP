@@ -24,15 +24,15 @@ add_executable(${PROJECT_NAME}
 # --------------------------------------------------------------------
 # Includes & Links
 # --------------------------------------------------------------------
-add_subdirectory(external/glfw-3.4)
-add_library(glad external/glad/src/glad.c)
-target_include_directories(glad PUBLIC external/glad/include)
+add_subdirectory(vendor/glfw)
+add_library(glad vendor/glad/src/glad.c)
+target_include_directories(glad PUBLIC vendor/glad/include)
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     src
-    external/glad/include
-    external/glm
-    external/glfw-3.4/include
+    vendor/glad/include
+    vendor/glm
+    vendor/glfw/include
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
