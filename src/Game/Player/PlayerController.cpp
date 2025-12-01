@@ -9,7 +9,10 @@ PlayerController::PlayerController(Camera& camera) : m_camera(camera) {}
 
 void PlayerController::update(float deltaTime) {
     if (!m_window) {
-        return;
+        m_window = glfwGetCurrentContext();
+        if (!m_window) {
+            return;
+        }
     }
 
     const float currentTime = static_cast<float>(glfwGetTime());
