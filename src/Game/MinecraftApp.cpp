@@ -1,6 +1,7 @@
 #include "Game/MinecraftApp.h"
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <algorithm>
 #include <iostream>
 
 namespace {
@@ -28,7 +29,6 @@ bool MinecraftApp::init() {
 
     glfwMakeContextCurrent(m_window);
     glfwSetWindowUserPointer(m_window, this);
-    glfwSetFramebufferSizeCallback(m_window, framebufferSizeCallback);
     glfwSetCursorPosCallback(m_window, mouseCallback);
     glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
@@ -38,6 +38,22 @@ bool MinecraftApp::init() {
         std::cerr << "Failed to initialize GLAD" << std::endl;
         return false;
     }
+
+    if (!GLAD_GL_VERSION_4_5) {
+        std::cerr << "OpenGL 4.5 is required but not supported by this system." << std::endl;
+        return false;
+    }
+
+    glfwSetFramebufferSizeCallback(m_window, framebufferSizeCallback);
+
+    int framebufferWidth = m_width;
+    int framebufferHeight = m_height;
+    glfwGetFramebufferSize(m_window, &framebufferWidth, &framebufferHeight);
+    framebufferWidth = std::max(1, framebufferWidth);
+    framebufferHeight = std::max(1, framebufferHeight);
+    m_width = framebufferWidth;
+    m_height = framebufferHeight;
+    glViewport(0, 0, framebufferWidth, framebufferHeight);
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
