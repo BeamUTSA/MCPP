@@ -32,6 +32,8 @@ bool MinecraftApp::init() {
     glfwSetCursorPosCallback(m_window, mouseCallback);
     glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
+    glViewport(0, 0, m_width, m_height);
+
     m_playerController.setWindow(m_window);
 
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
