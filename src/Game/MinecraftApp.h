@@ -40,4 +40,6 @@ private:
     std::vector<std::unique_ptr<Chunk>> m_chunks;
 
     ImGuiLayer m_imguiLayer;
+
+    bool m_glFunctionsReady{false};
 };

@@ -46,6 +46,8 @@ bool MinecraftApp::init() {
         return false;
     }
 
+    m_glFunctionsReady = true;
+
     glfwSetFramebufferSizeCallback(m_window, framebufferSizeCallback);
 
     int framebufferWidth = m_width;
@@ -55,7 +57,9 @@ bool MinecraftApp::init() {
     framebufferHeight = std::max(1, framebufferHeight);
     m_width = framebufferWidth;
     m_height = framebufferHeight;
-    glViewport(0, 0, framebufferWidth, framebufferHeight);
+    if (m_glFunctionsReady && glad_glViewport) {
+        glViewport(0, 0, framebufferWidth, framebufferHeight);
+    }
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -101,12 +105,17 @@ void MinecraftApp::run() {
 }
 
 void MinecraftApp::framebufferSizeCallback(GLFWwindow* window, int width, int height) {
-    glViewport(0, 0, width, height);
     auto* app = static_cast<MinecraftApp*>(glfwGetWindowUserPointer(window));
-    if (app) {
-        app->m_width = width;
-        app->m_height = height;
+    if (!app) {
+        return;
     }
+
+    if (app->m_glFunctionsReady && glad_glViewport) {
+        glViewport(0, 0, width, height);
+    }
+
+    app->m_width = std::max(1, width);
+    app->m_height = std::max(1, height);
 }
 
 void MinecraftApp::mouseCallback(GLFWwindow* window, double xpos, double ypos) {
