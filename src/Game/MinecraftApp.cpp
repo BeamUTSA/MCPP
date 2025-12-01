@@ -39,6 +39,13 @@ bool MinecraftApp::init() {
         return false;
     }
 
+    int framebufferWidth = m_width;
+    int framebufferHeight = m_height;
+    glfwGetFramebufferSize(m_window, &framebufferWidth, &framebufferHeight);
+    m_width = framebufferWidth;
+    m_height = framebufferHeight;
+    glViewport(0, 0, framebufferWidth, framebufferHeight);
+
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);

@@ -2,7 +2,8 @@
 
 #include <cmath>
 
-Camera::Camera(glm::vec3 position) : m_position(position) {
+Camera::Camera(glm::vec3 position, float yaw, float pitch)
+    : m_position(position), m_yaw(yaw), m_pitch(pitch) {
     updateVectors();
 }
 
