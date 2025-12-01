@@ -16,6 +16,7 @@ option(ENABLE_LTO "Enable Link Time Optimization (Release only)" ON)
 # --------------------------------------------------------------------
 add_executable(${PROJECT_NAME}
     src/main.cpp
+    src/Game/MinecraftApp.cpp
     src/Engine/Renderer/Camera.cpp
     src/Engine/Renderer/Shader.cpp
     src/Game/World/Chunk.cpp
@@ -24,22 +25,48 @@ add_executable(${PROJECT_NAME}
 # --------------------------------------------------------------------
 # Includes & Links
 # --------------------------------------------------------------------
-add_subdirectory(vendor/glfw)
+include(FetchContent)
+
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_WAYLAND OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_X11 ON CACHE BOOL "" FORCE)
+
+if (EXISTS "${CMAKE_SOURCE_DIR}/vendor/glfw/CMakeLists.txt")
+    add_subdirectory(vendor/glfw)
+else()
+    message(STATUS "Fetching GLFW (vendor folder missing CMake files)")
+    FetchContent_Declare(
+            glfw
+            GIT_REPOSITORY https://github.com/glfw/glfw.git
+            GIT_TAG 3.4
+    )
+    FetchContent_MakeAvailable(glfw)
+endif()
+
 add_library(glad vendor/glad/src/glad.c)
 target_include_directories(glad PUBLIC vendor/glad/include)
 
-target_include_directories(${PROJECT_NAME} PRIVATE
+set(PROJECT_INCLUDES
     src
     vendor/glad/include
     vendor/glm
     vendor/glfw/include
 )
 
+target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_INCLUDES})
+
 target_link_libraries(${PROJECT_NAME} PRIVATE
     glfw
     glad
-    opengl32
 )
+
+if (UNIX AND NOT APPLE)
+    target_link_libraries(${PROJECT_NAME} PRIVATE GL dl pthread)
+elseif (WIN32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE opengl32)
+endif()
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     _CRT_SECURE_NO_WARNINGS
