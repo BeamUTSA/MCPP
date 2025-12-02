@@ -49,10 +49,12 @@ void ImGuiLayer::renderDockspace() {
         return;
     }
 
+    // Use a passthrough dockspace so the 3D view remains visible behind ImGui.
     ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
                                    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
                                    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
-                                   ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_MenuBar;
+                                   ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_MenuBar |
+                                   ImGuiWindowFlags_NoBackground;
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->WorkPos);
