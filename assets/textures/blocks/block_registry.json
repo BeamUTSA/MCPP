@@ -1,0 +1,1020 @@
+{
+  "blocks": [
+    {
+      "name": "Air",
+      "id": 0,
+      "opaque": false,
+      "solid": false,
+      "textures": null
+    },
+    {
+      "name": "Stone",
+      "id": 1,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "stone",
+          "uv": {
+            "min": [
+              0.40234375,
+              0.01171875
+            ],
+            "max": [
+              0.40625,
+              0.015625
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Dirt",
+      "id": 2,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "dirt",
+          "uv": {
+            "min": [
+              0.3359375,
+              0.00390625
+            ],
+            "max": [
+              0.33984375,
+              0.0078125
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Grass",
+      "id": 3,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "top": {
+          "name": "grass_block_top",
+          "uv": {
+            "min": [
+              0.609375,
+              0.00390625
+            ],
+            "max": [
+              0.61328125,
+              0.0078125
+            ]
+          }
+        },
+        "bottom": {
+          "name": "dirt",
+          "uv": {
+            "min": [
+              0.3359375,
+              0.00390625
+            ],
+            "max": [
+              0.33984375,
+              0.0078125
+            ]
+          }
+        },
+        "side": {
+          "name": "grass_block_side",
+          "uv": {
+            "min": [
+              0.59765625,
+              0.00390625
+            ],
+            "max": [
+              0.6015625,
+              0.0078125
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Cobblestone",
+      "id": 4,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "cobblestone",
+          "uv": {
+            "min": [
+              0.796875,
+              0.0
+            ],
+            "max": [
+              0.80078125,
+              0.00390625
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "OakPlanks",
+      "id": 5,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "oak_planks",
+          "uv": {
+            "min": [
+              0.2890625,
+              0.0078125
+            ],
+            "max": [
+              0.29296875,
+              0.01171875
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "OakLog",
+      "id": 6,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "top": {
+          "name": "oak_log_top",
+          "uv": {
+            "min": [
+              0.28515625,
+              0.0078125
+            ],
+            "max": [
+              0.2890625,
+              0.01171875
+            ]
+          }
+        },
+        "bottom": {
+          "name": "oak_log_top",
+          "uv": {
+            "min": [
+              0.28515625,
+              0.0078125
+            ],
+            "max": [
+              0.2890625,
+              0.01171875
+            ]
+          }
+        },
+        "side": {
+          "name": "oak_log",
+          "uv": {
+            "min": [
+              0.28125,
+              0.0078125
+            ],
+            "max": [
+              0.28515625,
+              0.01171875
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "OakLeaves",
+      "id": 7,
+      "opaque": false,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "oak_leaves",
+          "uv": {
+            "min": [
+              0.27734375,
+              0.0078125
+            ],
+            "max": [
+              0.28125,
+              0.01171875
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Sand",
+      "id": 8,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "sand",
+          "uv": {
+            "min": [
+              0.0625,
+              0.01171875
+            ],
+            "max": [
+              0.06640625,
+              0.015625
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Gravel",
+      "id": 9,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "gravel",
+          "uv": {
+            "min": [
+              0.61328125,
+              0.00390625
+            ],
+            "max": [
+              0.6171875,
+              0.0078125
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "GoldOre",
+      "id": 10,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "gold_ore",
+          "uv": {
+            "min": [
+              0.58984375,
+              0.00390625
+            ],
+            "max": [
+              0.59375,
+              0.0078125
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "IronOre",
+      "id": 11,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "iron_ore",
+          "uv": {
+            "min": [
+              0.78125,
+              0.00390625
+            ],
+            "max": [
+              0.78515625,
+              0.0078125
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "CoalOre",
+      "id": 12,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "coal_ore",
+          "uv": {
+            "min": [
+              0.78515625,
+              0.0
+            ],
+            "max": [
+              0.7890625,
+              0.00390625
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "DiamondOre",
+      "id": 13,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "diamond_ore",
+          "uv": {
+            "min": [
+              0.328125,
+              0.00390625
+            ],
+            "max": [
+              0.33203125,
+              0.0078125
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Bedrock",
+      "id": 14,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "bedrock",
+          "uv": {
+            "min": [
+              0.1875,
+              0.0
+            ],
+            "max": [
+              0.19140625,
+              0.00390625
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Water",
+      "id": 15,
+      "opaque": false,
+      "solid": false,
+      "textures": {
+        "all": {
+          "name": "water_still",
+          "uv": {
+            "min": [
+              0.8828125,
+              0.01171875
+            ],
+            "max": [
+              0.88671875,
+              0.015625
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Lava",
+      "id": 16,
+      "opaque": true,
+      "solid": false,
+      "textures": {
+        "all": {
+          "name": "lava_still",
+          "uv": {
+            "min": [
+              0.890625,
+              0.00390625
+            ],
+            "max": [
+              0.89453125,
+              0.0078125
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Glass",
+      "id": 17,
+      "opaque": false,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "glass",
+          "uv": {
+            "min": [
+              0.56640625,
+              0.00390625
+            ],
+            "max": [
+              0.5703125,
+              0.0078125
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Sandstone",
+      "id": 18,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "top": {
+          "name": "sandstone_top",
+          "uv": {
+            "min": [
+              0.07421875,
+              0.01171875
+            ],
+            "max": [
+              0.078125,
+              0.015625
+            ]
+          }
+        },
+        "bottom": {
+          "name": "sandstone_bottom",
+          "uv": {
+            "min": [
+              0.0703125,
+              0.01171875
+            ],
+            "max": [
+              0.07421875,
+              0.015625
+            ]
+          }
+        },
+        "side": {
+          "name": "sandstone",
+          "uv": {
+            "min": [
+              0.06640625,
+              0.01171875
+            ],
+            "max": [
+              0.0703125,
+              0.015625
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Brick",
+      "id": 19,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "bricks",
+          "uv": {
+            "min": [
+              0.44140625,
+              0.0
+            ],
+            "max": [
+              0.4453125,
+              0.00390625
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "TNT",
+      "id": 20,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "top": {
+          "name": "tnt_top",
+          "uv": {
+            "min": [
+              0.64453125,
+              0.01171875
+            ],
+            "max": [
+              0.6484375,
+              0.015625
+            ]
+          }
+        },
+        "bottom": {
+          "name": "tnt_bottom",
+          "uv": {
+            "min": [
+              0.63671875,
+              0.01171875
+            ],
+            "max": [
+              0.640625,
+              0.015625
+            ]
+          }
+        },
+        "side": {
+          "name": "tnt_side",
+          "uv": {
+            "min": [
+              0.640625,
+              0.01171875
+            ],
+            "max": [
+              0.64453125,
+              0.015625
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "MossyCobblestone",
+      "id": 21,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "mossy_cobblestone",
+          "uv": {
+            "min": [
+              0.18359375,
+              0.0078125
+            ],
+            "max": [
+              0.1875,
+              0.01171875
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Obsidian",
+      "id": 22,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "obsidian",
+          "uv": {
+            "min": [
+              0.3203125,
+              0.0078125
+            ],
+            "max": [
+              0.32421875,
+              0.01171875
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "CraftingTable",
+      "id": 23,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "top": {
+          "name": "crafting_table_top",
+          "uv": {
+            "min": [
+              0.98828125,
+              0.0
+            ],
+            "max": [
+              0.9921875,
+              0.00390625
+            ]
+          }
+        },
+        "bottom": {
+          "name": "oak_planks",
+          "uv": {
+            "min": [
+              0.2890625,
+              0.0078125
+            ],
+            "max": [
+              0.29296875,
+              0.01171875
+            ]
+          }
+        },
+        "side": {
+          "name": "crafting_table_side",
+          "uv": {
+            "min": [
+              0.984375,
+              0.0
+            ],
+            "max": [
+              0.98828125,
+              0.00390625
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Furnace",
+      "id": 24,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "top": {
+          "name": "furnace_top",
+          "uv": {
+            "min": [
+              0.55859375,
+              0.00390625
+            ],
+            "max": [
+              0.5625,
+              0.0078125
+            ]
+          }
+        },
+        "bottom": {
+          "name": "furnace_top",
+          "uv": {
+            "min": [
+              0.55859375,
+              0.00390625
+            ],
+            "max": [
+              0.5625,
+              0.0078125
+            ]
+          }
+        },
+        "side": {
+          "name": "furnace_side",
+          "uv": {
+            "min": [
+              0.5546875,
+              0.00390625
+            ],
+            "max": [
+              0.55859375,
+              0.0078125
+            ]
+          }
+        },
+        "front": {
+          "name": "furnace_front",
+          "uv": {
+            "min": [
+              0.546875,
+              0.00390625
+            ],
+            "max": [
+              0.55078125,
+              0.0078125
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Snow",
+      "id": 25,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "snow",
+          "uv": {
+            "min": [
+              0.3203125,
+              0.01171875
+            ],
+            "max": [
+              0.32421875,
+              0.015625
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Ice",
+      "id": 26,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "ice",
+          "uv": {
+            "min": [
+              0.76171875,
+              0.00390625
+            ],
+            "max": [
+              0.765625,
+              0.0078125
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Clay",
+      "id": 27,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "clay",
+          "uv": {
+            "min": [
+              0.7734375,
+              0.0
+            ],
+            "max": [
+              0.77734375,
+              0.00390625
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Netherrack",
+      "id": 28,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "netherrack",
+          "uv": {
+            "min": [
+              0.26171875,
+              0.0078125
+            ],
+            "max": [
+              0.265625,
+              0.01171875
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "SoulSand",
+      "id": 29,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "soul_sand",
+          "uv": {
+            "min": [
+              0.34375,
+              0.01171875
+            ],
+            "max": [
+              0.34765625,
+              0.015625
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Glowstone",
+      "id": 30,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "glowstone",
+          "uv": {
+            "min": [
+              0.58203125,
+              0.00390625
+            ],
+            "max": [
+              0.5859375,
+              0.0078125
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "StoneBricks",
+      "id": 31,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "stone_bricks",
+          "uv": {
+            "min": [
+              0.40625,
+              0.01171875
+            ],
+            "max": [
+              0.41015625,
+              0.015625
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "MossyStoneBricks",
+      "id": 32,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "mossy_stone_bricks",
+          "uv": {
+            "min": [
+              0.1875,
+              0.0078125
+            ],
+            "max": [
+              0.19140625,
+              0.01171875
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "CrackedStoneBricks",
+      "id": 33,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "cracked_stone_bricks",
+          "uv": {
+            "min": [
+              0.921875,
+              0.0
+            ],
+            "max": [
+              0.92578125,
+              0.00390625
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Deepslate",
+      "id": 34,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "deepslate",
+          "uv": {
+            "min": [
+              0.23046875,
+              0.00390625
+            ],
+            "max": [
+              0.234375,
+              0.0078125
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "DeepslateCoalOre",
+      "id": 35,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "deepslate_coal_ore",
+          "uv": {
+            "min": [
+              0.23828125,
+              0.00390625
+            ],
+            "max": [
+              0.2421875,
+              0.0078125
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "DeepslateIronOre",
+      "id": 36,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "deepslate_iron_ore",
+          "uv": {
+            "min": [
+              0.2578125,
+              0.00390625
+            ],
+            "max": [
+              0.26171875,
+              0.0078125
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "DeepslateDiamondOre",
+      "id": 37,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "deepslate_diamond_ore",
+          "uv": {
+            "min": [
+              0.24609375,
+              0.00390625
+            ],
+            "max": [
+              0.25,
+              0.0078125
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Diorite",
+      "id": 38,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "diorite",
+          "uv": {
+            "min": [
+              0.33203125,
+              0.00390625
+            ],
+            "max": [
+              0.3359375,
+              0.0078125
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Granite",
+      "id": 39,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "granite",
+          "uv": {
+            "min": [
+              0.59375,
+              0.00390625
+            ],
+            "max": [
+              0.59765625,
+              0.0078125
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Andesite",
+      "id": 40,
+      "opaque": true,
+      "solid": true,
+      "textures": {
+        "all": {
+          "name": "andesite",
+          "uv": {
+            "min": [
+              0.05859375,
+              0.0
+            ],
+            "max": [
+              0.0625,
+              0.00390625
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

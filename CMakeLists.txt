@@ -15,13 +15,15 @@ option(ENABLE_LTO "Enable Link Time Optimization (Release only)" ON)
 # Source files
 # --------------------------------------------------------------------
 add_executable(${PROJECT_NAME}
-    src/main.cpp
-    src/Game/MinecraftApp.cpp
-    src/Game/Player/PlayerController.cpp
-    src/Engine/ImGui/ImGuiLayer.cpp
-    src/Engine/Renderer/Camera.cpp
-    src/Engine/Renderer/Shader.cpp
-    src/Game/World/Chunk.cpp
+        src/main.cpp
+        src/Game/MinecraftApp.cpp
+        src/Game/Player/PlayerController.cpp
+        src/Engine/ImGui/ImGuiLayer.cpp
+        src/Engine/Renderer/Camera.cpp
+        src/Engine/Renderer/Shader.cpp
+        src/Game/World/Chunk.cpp
+        src/Game/Rendering/TextureAtlas.cpp
+        src/Game/World/Block/BlockDatabase.cpp
 )
 
 # --------------------------------------------------------------------
@@ -75,28 +77,30 @@ if (NOT EXISTS "${IMGUI_DIR}/imgui.cpp")
 endif()
 
 set(PROJECT_INCLUDES
-    src
-    vendor/glad/include
-    ${GLM_DIR}
-    vendor/glfw/include
-    ${IMGUI_DIR}
-    ${IMGUI_DIR}/backends
+        src
+        vendor/glad/include
+        ${GLM_DIR}
+        vendor/glfw/include
+        ${IMGUI_DIR}
+        ${IMGUI_DIR}/backends
+        vendor/stb
+        vendor/nlohmann
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_INCLUDES})
 
 target_sources(${PROJECT_NAME} PRIVATE
-    ${IMGUI_DIR}/imgui.cpp
-    ${IMGUI_DIR}/imgui_draw.cpp
-    ${IMGUI_DIR}/imgui_tables.cpp
-    ${IMGUI_DIR}/imgui_widgets.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+        ${IMGUI_DIR}/imgui.cpp
+        ${IMGUI_DIR}/imgui_draw.cpp
+        ${IMGUI_DIR}/imgui_tables.cpp
+        ${IMGUI_DIR}/imgui_widgets.cpp
+        ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+        ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    glfw
-    glad
+        glfw
+        glad
 )
 
 if (UNIX AND NOT APPLE)
@@ -107,8 +111,8 @@ elseif (WIN32)
 endif()
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
-    _CRT_SECURE_NO_WARNINGS
-    IMGUI_IMPL_OPENGL_LOADER_GLAD
+        _CRT_SECURE_NO_WARNINGS
+        IMGUI_IMPL_OPENGL_LOADER_GLAD
 )
 
 # --------------------------------------------------------------------
