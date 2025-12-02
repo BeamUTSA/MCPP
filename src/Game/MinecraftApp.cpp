@@ -71,14 +71,27 @@ bool MinecraftApp::init() {
 
     m_shader = std::make_unique<Shader>("assets/shaders/core/vertex.glsl", "assets/shaders/core/fragment.glsl");
 
-    // Generate only one chunk at the origin for initial viewing
-    auto chunk = std::make_unique<Chunk>(glm::vec3(0.0f, 0.0f, 0.0f));
-    chunk->generate();
-    m_chunks.push_back(std::move(chunk));
-    
-    // Adjust camera position to better view the single chunk
-    m_camera = Camera{glm::vec3(8.0f, 5.0f, 8.0f), -135.0f, -20.0f};
+    // Load texture atlas
+    if (!m_textureAtlas.load("assets/textures/blocks/block_atlas.png", "assets/textures/blocks/atlas_mapping.json")) {
+        std::cerr << "Failed to load texture atlas" << std::endl;
+        return false;
+    }
 
+    // Load block database
+    auto& blockDB = MCPP::BlockDatabase::instance();
+    if (!blockDB.load("assets/textures/blocks/block_registry.json", m_textureAtlas)) {
+        std::cerr << "Failed to load block database" << std::endl;
+        return false;
+    }
+
+    // Generate only one chunk at the origin for initial viewing
+    auto chunk = std::make_unique<Chunk>(glm::ivec3(0, 0, 0));
+    chunk->generate();
+    chunk->buildMesh(m_textureAtlas);
+    m_chunks.push_back(std::move(chunk));
+
+    // Adjust camera position to better view the single chunk
+    m_camera = Camera{glm::vec3(8.0f, 10.0f, 8.0f), -135.0f, -20.0f};
 
     return true;
 }
@@ -160,8 +173,12 @@ void MinecraftApp::renderFrame() {
     m_shader->setMat4("view", view);
     m_shader->setVec3("lightDir", glm::normalize(glm::vec3(0.5f, 1.0f, 0.2f)));
 
+    // Bind texture atlas
+    m_textureAtlas.bind(0);
+    m_shader->setInt("blockAtlas", 0);
+
     for (auto& chunk : m_chunks) {
-        glm::mat4 model = glm::translate(glm::mat4(1.0f), chunk->position); // Use chunk->position directly
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), chunk->getWorldPosition());
         m_shader->setMat4("model", model);
         chunk->render();
     }

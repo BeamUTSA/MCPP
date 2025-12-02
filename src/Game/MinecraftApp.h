@@ -10,6 +10,8 @@
 #include "Engine/ImGui/ImGuiLayer.hpp"
 #include "Game/Player/PlayerController.h"
 #include "Game/World/Chunk.h"
+#include "Game/Rendering/TextureAtlas.h"
+#include "Game/World/Block/BlockDatabase.h"
 
 class MinecraftApp {
 public:
@@ -38,6 +40,8 @@ private:
 
     std::unique_ptr<Shader> m_shader;
     std::vector<std::unique_ptr<Chunk>> m_chunks;
+
+    MCPP::TextureAtlas m_textureAtlas;
 
     ImGuiLayer m_imguiLayer;
 
