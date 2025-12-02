@@ -49,12 +49,12 @@ bool BlockDatabase::load(const std::string& registryPath, const TextureAtlas& at
                         uv.min.y = texData["uv"]["min"][1].get<float>();
                         uv.max.x = texData["uv"]["max"][0].get<float>();
                         uv.max.y = texData["uv"]["max"][1].get<float>();
-                        
-                        // Flip V for OpenGL
+
+                        // Flip V for OpenGL (image was flipped on load with stbi)
                         uv.min.y = 1.0f - uv.min.y;
                         uv.max.y = 1.0f - uv.max.y;
                         std::swap(uv.min.y, uv.max.y);
-                        
+
                         return uv;
                     }
                     return UVCoords{};
