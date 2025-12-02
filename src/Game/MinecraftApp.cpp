@@ -84,14 +84,20 @@ bool MinecraftApp::init() {
         return false;
     }
 
-    // Generate only one chunk at the origin for initial viewing
-    auto chunk = std::make_unique<Chunk>(glm::ivec3(0, 0, 0));
-    chunk->generate();
-    chunk->buildMesh(m_textureAtlas);
-    m_chunks.push_back(std::move(chunk));
+    // Generate a 3x3 grid of chunks to test rendering and verify no seams
+    std::cout << "Generating test chunks..." << std::endl;
+    for (int x = -1; x <= 1; ++x) {
+        for (int z = -1; z <= 1; ++z) {
+            auto chunk = std::make_unique<Chunk>(glm::ivec3(x, 0, z));
+            chunk->generate();
+            chunk->buildMesh(m_textureAtlas);
+            m_chunks.push_back(std::move(chunk));
+            std::cout << "  Generated chunk at (" << x << ", 0, " << z << ")" << std::endl;
+        }
+    }
 
-    // Adjust camera position to better view the single chunk
-    m_camera = Camera{glm::vec3(8.0f, 10.0f, 8.0f), -135.0f, -20.0f};
+    // Position camera to view the chunk grid from above
+    m_camera = Camera{glm::vec3(24.0f, 20.0f, 24.0f), -135.0f, -30.0f};
 
     return true;
 }
