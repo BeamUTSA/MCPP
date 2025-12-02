@@ -92,6 +92,14 @@ void Shader::setVec3(const std::string& name, const glm::vec3& vec) const {
     glUniform3fv(location, 1, &vec[0]);
 }
 
+void Shader::setInt(const std::string& name, int value) const {
+    int location = glGetUniformLocation(m_program, name.c_str());
+    if (location == -1) {
+        std::cerr << "Warning: Uniform '" << name << "' not found in shader program." << std::endl;
+    }
+    glUniform1i(location, value);
+}
+
 unsigned int Shader::loadShader(const std::string& path, unsigned int type) {
     std::string code = loadShaderSourceWithIncludes(path); // Use the new function
     if (code.empty()) {
