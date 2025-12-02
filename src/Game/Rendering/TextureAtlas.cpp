@@ -73,22 +73,20 @@ bool TextureAtlas::loadImage(const std::string& path) {
     glGenTextures(1, &m_textureID);
     glBindTexture(GL_TEXTURE_2D, m_textureID);
     
-    // Set texture parameters for pixel art (no filtering, nearest neighbor)
+    // Set texture parameters for pixel art
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+
+    // Use nearest neighbor filtering to prevent atlas bleeding
+    // This ensures sharp pixels and no color bleeding between adjacent textures
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    
+
     // Upload texture data
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_width, m_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-    
+
     // Generate mipmaps for better quality at distance
     glGenerateMipmap(GL_TEXTURE_2D);
-    
-    // Set max anisotropic filtering if available
-    float maxAniso = 1.0f;
-    glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &maxAniso);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, std::min(maxAniso, 4.0f));
     
     glBindTexture(GL_TEXTURE_2D, 0);
     
