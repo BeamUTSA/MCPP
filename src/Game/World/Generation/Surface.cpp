@@ -2,54 +2,105 @@
 #include "Game/World/Generation/Surface.h"
 #include "Game/World/Generation/Noise.h"
 
-#include "Game/World/Block/BlockDatabase.h"  // to get block IDs by name, if you like
+#include "Game/World/Block/BlockDatabase.h"
 
-class DefaultSurface : public Surface {
+class ImprovedSurface : public Surface {
 public:
-    explicit DefaultSurface(uint32_t seed = 1337u);
+    explicit ImprovedSurface(uint32_t seed = 1337u);
 
     SurfaceSample sampleColumn(int worldX, int worldZ) const override;
 
 private:
-    uint32_t m_seed;
+    TerrainNoise m_noise;
 
-    // Tunables
-    int   m_baseHeight     = 48;    // "sea level"
-    float m_heightScale    = 8.0f; // amplitude of hills
-    int   m_octaves        = 4;
-    float m_frequency      = 0.2f;
-    float m_persistence    = 0.5f;
+    // Base level for water - blocks below this in ocean areas will be water
+    static constexpr int WATER_LEVEL = 48;
 
     // Cached block IDs
     uint8_t m_grassId;
     uint8_t m_dirtId;
     uint8_t m_stoneId;
+    uint8_t m_sandId;
+    uint8_t m_waterId;
+    uint8_t m_snowId;
 };
 
-DefaultSurface::DefaultSurface(uint32_t seed)
-    : m_seed(seed)
+ImprovedSurface::ImprovedSurface(uint32_t seed)
+    : m_noise(seed)
 {
     // Grab block IDs once (assuming names exist in your registry)
     auto& db = MCPP::BlockDatabase::instance();
     m_grassId = db.getBlockByName("Grass")->id;
     m_dirtId  = db.getBlockByName("Dirt")->id;
     m_stoneId = db.getBlockByName("Stone")->id;
+    m_sandId  = db.getBlockByName("Sand")->id;
+
+    // Try to get water and snow, fallback to stone if not available
+    auto* waterBlock = db.getBlockByName("Water");
+    m_waterId = waterBlock ? waterBlock->id : m_stoneId;
+
+    auto* snowBlock = db.getBlockByName("Snow");
+    m_snowId = snowBlock ? snowBlock->id : m_grassId;
 }
 
 std::unique_ptr<Surface> createDefaultSurface(uint32_t seed) {
-    return std::make_unique<DefaultSurface>(seed);
+    return std::make_unique<ImprovedSurface>(seed);
 }
 
 
-SurfaceSample DefaultSurface::sampleColumn(int worldX, int worldZ) const {
-    // Basic FBM-based height
-    float hNoise = fbm2D(worldX, worldZ, m_octaves, m_frequency, m_persistence, m_seed);
-    int   height = m_baseHeight + static_cast<int>(hNoise * m_heightScale);
+SurfaceSample ImprovedSurface::sampleColumn(int worldX, int worldZ) const {
+    // Use the advanced terrain noise system
+    float terrainHeight = m_noise.sampleTerrainHeight(
+        static_cast<float>(worldX),
+        static_cast<float>(worldZ)
+    );
+
+    // Add base water level to convert to absolute height
+    int absoluteHeight = WATER_LEVEL + static_cast<int>(terrainHeight);
+
+    // Clamp to reasonable range (0 to 255 for standard Minecraft-like world)
+    absoluteHeight = std::max(0, std::min(255, absoluteHeight));
+
+    // Get individual noise values for biome-like decisions
+    float warpedX = worldX + m_noise.sampleDomainWarpX(worldX, worldZ);
+    float warpedZ = worldZ + m_noise.sampleDomainWarpZ(worldX, worldZ);
+    float continentalness = m_noise.sampleContinentalness(warpedX, warpedZ);
+    float erosion = m_noise.sampleErosion(warpedX, warpedZ);
 
     SurfaceSample s{};
-    s.height       = height;
-    s.topBlock     = m_grassId;
-    s.fillerBlock  = m_dirtId;
-    s.stoneBlock   = m_stoneId;
+    s.height = absoluteHeight;
+
+    // Determine surface blocks based on terrain type
+    if (absoluteHeight < WATER_LEVEL) {
+        // Underwater - use sand on ocean floor
+        s.topBlock = m_sandId;
+        s.fillerBlock = m_sandId;
+        s.stoneBlock = m_stoneId;
+    }
+    else if (absoluteHeight < WATER_LEVEL + 3) {
+        // Beach areas - sandy shores
+        s.topBlock = m_sandId;
+        s.fillerBlock = m_sandId;
+        s.stoneBlock = m_stoneId;
+    }
+    else if (absoluteHeight > 120 && erosion < 0.3f) {
+        // High mountain peaks - snow-capped
+        s.topBlock = m_snowId;
+        s.fillerBlock = m_stoneId;
+        s.stoneBlock = m_stoneId;
+    }
+    else if (erosion < 0.35f && continentalness > 0.55f) {
+        // Mountain areas - exposed stone
+        s.topBlock = m_stoneId;
+        s.fillerBlock = m_stoneId;
+        s.stoneBlock = m_stoneId;
+    }
+    else {
+        // Normal land - grass and dirt
+        s.topBlock = m_grassId;
+        s.fillerBlock = m_dirtId;
+        s.stoneBlock = m_stoneId;
+    }
+
     return s;
 }
