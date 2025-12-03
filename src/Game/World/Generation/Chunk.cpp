@@ -152,6 +152,15 @@ Chunk& Chunk::operator=(Chunk&& other) noexcept {
 void Chunk::generate(const SurfaceManager& surfaceManager) {
     auto& db = MCPP::BlockDatabase::instance();
 
+    // Get water block ID (fallback to air if not available)
+    uint8_t waterId = 0;
+    auto* waterBlock = db.getBlockByName("Water");
+    if (waterBlock) {
+        waterId = waterBlock->id;
+    }
+
+    constexpr int WATER_LEVEL = 48;
+
     for (int x = 0; x < CHUNK_SIZE; ++x) {
         for (int z = 0; z < CHUNK_SIZE; ++z) {
             const int worldX = chunkPos.x * CHUNK_SIZE + x;
@@ -166,7 +175,13 @@ void Chunk::generate(const SurfaceManager& surfaceManager) {
                 uint8_t blockId = 0; // air
 
                 if (y > maxY) {
-                    blockId = 0; // air
+                    // Above terrain surface
+                    if (y <= WATER_LEVEL && waterId != 0) {
+                        // Fill with water up to water level
+                        blockId = waterId;
+                    } else {
+                        blockId = 0; // air
+                    }
                 } else if (y == s.height) {
                     blockId = s.topBlock;
                 } else if (y >= s.height - 3) {

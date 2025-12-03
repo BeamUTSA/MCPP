@@ -96,6 +96,7 @@ set(PROJECT_INCLUDES
         ${IMGUI_DIR}/backends
         vendor/stb
         vendor/nlohmann
+        vendor/FastNoiseLite
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_INCLUDES})
