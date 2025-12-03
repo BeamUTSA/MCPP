@@ -10,11 +10,12 @@ public:
 
     SurfaceSample sampleColumn(int worldX, int worldZ) const override;
 
+    // Override to expose TerrainNoise for parameter tweaking
+    TerrainNoise* getTerrainNoise() override { return &m_noise; }
+    const TerrainNoise* getTerrainNoise() const override { return &m_noise; }
+
 private:
     TerrainNoise m_noise;
-
-    // Base level for water - blocks below this in ocean areas will be water
-    static constexpr int WATER_LEVEL = 48;
 
     // Cached block IDs
     uint8_t m_grassId;
@@ -56,6 +57,7 @@ SurfaceSample ImprovedSurface::sampleColumn(int worldX, int worldZ) const {
     );
 
     // Add base water level to convert to absolute height
+    const int WATER_LEVEL = m_noise.getParams().waterLevel;
     int absoluteHeight = WATER_LEVEL + static_cast<int>(terrainHeight);
 
     // Clamp to reasonable range (0 to 255 for standard Minecraft-like world)

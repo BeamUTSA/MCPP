@@ -22,6 +22,12 @@ public:
      */
     SurfaceSample sampleColumn(int worldX, int worldZ) const;
 
+    /**
+     * Get the default surface for direct access (for tweaking parameters)
+     */
+    Surface* getDefaultSurface() { return m_defaultSurface.get(); }
+    const Surface* getDefaultSurface() const { return m_defaultSurface.get(); }
+
 private:
     std::unique_ptr<Surface> m_defaultSurface;
 };
