@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Game/Rendering/TextureAtlas.h"
+#include "Engine/Physics/Collision.h"
 
 #include <array>
 #include <memory>
@@ -10,15 +11,16 @@
 namespace MCPP {
 
 // Face indices for texture lookups
+// Top, Bottom, North(Z-), South(Z+), East(X+), West(X-)
 enum class BlockFace : uint8_t {
-    Top = 0,
+    Top    = 0,
     Bottom = 1,
-    North = 2,   // -Z
-    South = 3,   // +Z
-    East = 4,    // +X
-    West = 5,    // -X
-    COUNT = 6
+    North  = 2,
+    South  = 3,
+    East   = 4,
+    West   = 5
 };
+
 
 struct BlockTextures {
     // UV coordinates for each face
@@ -39,14 +41,21 @@ struct BlockTextures {
 };
 
 struct BlockDefinition {
-    uint8_t id{0};
+    uint8_t id{1};
     std::string name;
-    bool isOpaque{true};      // Does this block block light?
-    bool isSolid{true};       // Does this block have collision?
+    bool isOpaque{true};       // Does this block block light?
+    bool isSolid{true};        // Does this block have collision?
     bool isTransparent{false}; // Should this block be rendered in transparent pass?
-    
+
+    // Local-space collision box, in block coordinates.
+    // Default is a full cube [0,0,0] -> [1,1,1] for solid blocks.
+    // For non-solid blocks (air, flowers) this will be empty and hasHitbox=false.
+    AABB localHitbox;
+    bool hasHitbox{false};
+
     BlockTextures textures;
 };
+
 
 class BlockDatabase {
 public:
@@ -83,6 +92,13 @@ public:
      * Check if a block is solid (has collision)
      */
     bool isSolid(uint8_t id) const;
+
+    const AABB& getLocalHitbox(uint8_t id) const;
+
+    /**
+     * Check if a block actually has a collision hitbox.
+     */
+    bool hasHitbox(uint8_t id) const { return getBlock(id).hasHitbox; }
     
     /**
      * Check if a block is air (ID 0)

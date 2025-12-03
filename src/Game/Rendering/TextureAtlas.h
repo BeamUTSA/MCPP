@@ -48,7 +48,7 @@ public:
     /**
      * Unbind the texture
      */
-    void unbind() const;
+    static void unbind();
     
     /**
      * Get UV coordinates for a texture by name

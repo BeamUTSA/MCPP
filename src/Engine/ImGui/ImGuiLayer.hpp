@@ -1,6 +1,7 @@
 #pragma once
 
-#include <GLFW/glfw3.h>
+struct GLFWwindow;
+class MinecraftApp;
 
 class ImGuiLayer {
 public:
@@ -8,9 +9,14 @@ public:
     ~ImGuiLayer();
 
     void init(GLFWwindow* window);
+
     void beginFrame();
     void renderDockspace();
     void renderPerformanceOverlay(float deltaTime);
+
+    // New: debug window for engine toggles (wireframe, etc.)
+    void renderDebugWindow(MinecraftApp& app);
+
     void endFrame();
     void shutdown();
 

@@ -21,9 +21,20 @@ add_executable(${PROJECT_NAME}
         src/Engine/ImGui/ImGuiLayer.cpp
         src/Engine/Renderer/Camera.cpp
         src/Engine/Renderer/Shader.cpp
-        src/Game/World/Chunk.cpp
+        src/Engine/Physics/Collision.cpp
+        src/Game/World/Generation/Chunk.cpp
+        src/Game/World/ChunkManager.cpp
         src/Game/Rendering/TextureAtlas.cpp
         src/Game/World/Block/BlockDatabase.cpp
+        src/Engine/Renderer/Frustum.cpp
+        src/Engine/Renderer/Frustum.h
+        src/Game/World/Generation/Surface.h
+        src/Game/World/Generation/Noise.h
+        src/Game/World/Generation/Surface.cpp
+        src/Game/World/Generation/SurfaceManager.h
+        src/Game/World/Generation/SurfaceManager.cpp
+        src/Game/World/Meshing/Greedy.h
+        src/Game/World/Meshing/Greedy.cpp
 )
 
 # --------------------------------------------------------------------

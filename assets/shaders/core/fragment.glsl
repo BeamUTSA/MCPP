@@ -25,7 +25,7 @@ void main()
     float diff = max(dot(normalize(Normal), normalizedLight), 0.0);
 
     // Combine lighting with texture
-    vec3 ambient = 0.3 * texColor.rgb;
+    vec3 ambient = 0.4 * texColor.rgb;
     vec3 diffuse = diff * texColor.rgb;
 
     // Apply ambient occlusion

@@ -4,11 +4,9 @@
 #include <iostream>
 #include <sstream>
 
-// Define STB_IMAGE_IMPLEMENTATION in exactly one .cpp file
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-// Simple JSON parsing (you can replace with nlohmann/json for more robust parsing)
 #include <json.hpp>
 
 namespace MCPP {
@@ -33,8 +31,8 @@ TextureAtlas& TextureAtlas::operator=(TextureAtlas&& other) noexcept {
             glDeleteTextures(1, &m_textureID);
         }
         m_textureID = other.m_textureID;
-        m_width = other.m_width;
-        m_height = other.m_height;
+        m_width     = other.m_width;
+        m_height    = other.m_height;
         m_uvMapping = std::move(other.m_uvMapping);
         other.m_textureID = 0;
     }
@@ -45,51 +43,47 @@ bool TextureAtlas::load(const std::string& atlasPath, const std::string& mapping
     if (!loadImage(atlasPath)) {
         return false;
     }
-    
+
     if (!loadMapping(mappingPath)) {
-        std::cerr << "Warning: Failed to load atlas mapping, UVs will be default" << std::endl;
-        // Continue anyway - the texture is loaded
+        std::cerr << "Warning: Failed to load atlas mapping, UVs will be default\n";
+        // We still keep the texture; rendering will just use default UV (0..1).
     }
-    
+
     return true;
 }
 
 bool TextureAtlas::loadImage(const std::string& path) {
-    // Flip vertically for OpenGL (bottom-left origin)
     stbi_set_flip_vertically_on_load(true);
-    
-    int channels;
+
+    int channels = 0;
     unsigned char* data = stbi_load(path.c_str(), &m_width, &m_height, &channels, 4);
-    
+
     if (!data) {
-        std::cerr << "Failed to load texture atlas: " << path << std::endl;
-        std::cerr << "STB Error: " << stbi_failure_reason() << std::endl;
+        std::cerr << "Failed to load texture atlas: " << path << "\n";
+        std::cerr << "STB Error: " << stbi_failure_reason() << "\n";
         return false;
     }
-    
-    std::cout << "Loaded atlas: " << path << " (" << m_width << "x" << m_height << ")" << std::endl;
-    
-    // Generate OpenGL texture
+
+    std::cout << "Loaded atlas: " << path << " (" << m_width << "x" << m_height << ")\n";
+
     glGenTextures(1, &m_textureID);
     glBindTexture(GL_TEXTURE_2D, m_textureID);
-    
-    // Set texture parameters for pixel art
+
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    // Use nearest neighbor filtering to prevent atlas bleeding
-    // This ensures sharp pixels and no color bleeding between adjacent textures
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+    // Pixel-perfect for block textures; this avoids interpolation bleed.
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    // Upload texture data
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_width, m_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8,
+                 m_width, m_height, 0,
+                 GL_RGBA, GL_UNSIGNED_BYTE, data);
 
-    // Generate mipmaps for better quality at distance
+    // Mipmaps are generated but with MIN_FILTER=NEAREST only level 0 is used.
     glGenerateMipmap(GL_TEXTURE_2D);
-    
+
     glBindTexture(GL_TEXTURE_2D, 0);
-    
     stbi_image_free(data);
     return true;
 }
@@ -97,38 +91,56 @@ bool TextureAtlas::loadImage(const std::string& path) {
 bool TextureAtlas::loadMapping(const std::string& path) {
     std::ifstream file(path);
     if (!file.is_open()) {
-        std::cerr << "Failed to open mapping file: " << path << std::endl;
+        std::cerr << "Failed to open mapping file: " << path << "\n";
         return false;
     }
-    
+
     try {
         nlohmann::json mapping;
         file >> mapping;
-        
+
         for (auto& [texName, texData] : mapping.items()) {
             UVCoords uv;
-            
-            if (texData.contains("uv")) {
-                auto& uvData = texData["uv"];
-                uv.min.x = uvData["min"][0].get<float>();
-                uv.min.y = uvData["min"][1].get<float>();
-                uv.max.x = uvData["max"][0].get<float>();
-                uv.max.y = uvData["max"][1].get<float>();
-                
-                // Flip V coordinates for OpenGL (we flipped the image on load)
+
+            if (texData.contains("pixel")) {
+                auto& pixel = texData["pixel"];
+                int px = pixel[0].get<int>(); // pixel x in atlas
+                int py = pixel[1].get<int>(); // pixel y in atlas
+
+                constexpr int TILE_SIZE = 16;
+
+                float texelU = 1.0f / static_cast<float>(m_width);   // 1/4096
+                float texelV = 1.0f / static_cast<float>(m_height);  // 1/4096
+
+                // Half-texel inset to avoid touching neighbour tiles.
+                float insetU = texelU * 0.5f;
+                float insetV = texelV * 0.5f;
+
+                // NOTE: correct formula is (px * texel + inset), not (px + inset)*texel
+                float uMin = px * texelU + insetU;
+                float vMin = py * texelV + insetV;
+                float uMax = (px + TILE_SIZE) * texelU - insetU;
+                float vMax = (py + TILE_SIZE) * texelV - insetV;
+
+                uv.min.x = uMin;
+                uv.min.y = vMin;
+                uv.max.x = uMax;
+                uv.max.y = vMax;
+
+                // Flip V because image data was flipped on load for OpenGL
                 uv.min.y = 1.0f - uv.min.y;
                 uv.max.y = 1.0f - uv.max.y;
                 std::swap(uv.min.y, uv.max.y);
             }
-            
+
             m_uvMapping[texName] = uv;
         }
-        
-        std::cout << "Loaded " << m_uvMapping.size() << " texture mappings" << std::endl;
+
+        std::cout << "Loaded " << m_uvMapping.size() << " texture mappings\n";
         return true;
-        
+
     } catch (const std::exception& e) {
-        std::cerr << "JSON parsing error: " << e.what() << std::endl;
+        std::cerr << "JSON parsing error in atlas mapping: " << e.what() << "\n";
         return false;
     }
 }
@@ -138,7 +150,7 @@ void TextureAtlas::bind(unsigned int unit) const {
     glBindTexture(GL_TEXTURE_2D, m_textureID);
 }
 
-void TextureAtlas::unbind() const {
+void TextureAtlas::unbind() {
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
@@ -147,11 +159,11 @@ UVCoords TextureAtlas::getUV(const std::string& textureName) const {
     if (it != m_uvMapping.end()) {
         return it->second;
     }
-    return UVCoords{}; // Default full texture
+    return UVCoords{}; // fallback: full texture
 }
 
 bool TextureAtlas::hasTexture(const std::string& textureName) const {
-    return m_uvMapping.find(textureName) != m_uvMapping.end();
+    return m_uvMapping.contains(textureName);
 }
 
 } // namespace MCPP

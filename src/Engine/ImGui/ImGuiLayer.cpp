@@ -1,5 +1,7 @@
 #include "ImGuiLayer.hpp"
 
+#include "Game/MinecraftApp.h"      // for MinecraftApp in renderDebugWindow
+
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <backends/imgui_impl_glfw.h>
@@ -79,17 +81,20 @@ void ImGuiLayer::renderPerformanceOverlay(float deltaTime) {
         return;
     }
 
-    const float fps = deltaTime > 0.0f ? 1.0f / deltaTime : 0.0f;
-    const float frameMs = deltaTime * 1000.0f;
-    const double frameNs = static_cast<double>(deltaTime) * 1'000'000'000.0;
+    const float  fps      = deltaTime > 0.0f ? 1.0f / deltaTime : 0.0f;
+    const float  frameMs  = deltaTime * 1000.0f;
+    const double frameNs  = static_cast<double>(deltaTime) * 1'000'000'000.0;
 
     const float distanceFromEdge = 10.0f;
     ImGui::SetNextWindowPos(ImVec2(distanceFromEdge, distanceFromEdge), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.35f);
 
-    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
-                                   ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
-                                   ImGuiWindowFlags_NoNav;
+    const ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoFocusOnAppearing |
+        ImGuiWindowFlags_NoNav;
 
     if (ImGui::Begin("PerformanceOverlay", nullptr, flags)) {
         ImGui::TextUnformatted("Frame Timings");
@@ -97,6 +102,21 @@ void ImGuiLayer::renderPerformanceOverlay(float deltaTime) {
         ImGui::Text("FPS: %.1f", fps);
         ImGui::Text("Frame: %.3f ms", frameMs);
         ImGui::Text("Frame: %.0f ns", frameNs);
+    }
+
+    ImGui::End();
+}
+
+void ImGuiLayer::renderDebugWindow(MinecraftApp& app) {
+    if (!m_initialized) {
+        return;
+    }
+
+    if (ImGui::Begin("Render Debug")) {
+        bool wireframe = app.isWireframeEnabled();
+        if (ImGui::Checkbox("Wireframe mode", &wireframe)) {
+            app.setWireframeEnabled(wireframe);
+        }
     }
 
     ImGui::End();

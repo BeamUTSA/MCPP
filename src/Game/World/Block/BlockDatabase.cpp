@@ -17,106 +17,114 @@ bool BlockDatabase::load(const std::string& registryPath, const TextureAtlas& at
         std::cerr << "Failed to open block registry: " << registryPath << std::endl;
         return false;
     }
-    
+
     try {
         nlohmann::json registry;
         file >> registry;
-        
+
         if (!registry.contains("blocks")) {
             std::cerr << "Invalid registry format: missing 'blocks' array" << std::endl;
             return false;
         }
-        
+
         m_blocks.clear();
-        
+
         for (const auto& blockJson : registry["blocks"]) {
             BlockDefinition block;
-            block.id = blockJson["id"].get<uint8_t>();
-            block.name = blockJson["name"].get<std::string>();
-            block.isOpaque = blockJson.value("opaque", true);
-            block.isSolid = blockJson.value("solid", true);
+            block.id           = blockJson["id"].get<uint8_t>();
+            block.name         = blockJson["name"].get<std::string>();
+            block.isOpaque     = blockJson.value("opaque", true);
+            block.isSolid      = blockJson.value("solid",  true);
             block.isTransparent = !block.isOpaque;
-            
-            // Load textures if present
+
+            // Default hitbox: full cube for solid, none for non-solid
+            if (block.isSolid) {
+                block.localHitbox = AABB(glm::vec3(0.0f), glm::vec3(1.0f));
+                block.hasHitbox   = true;
+            } else {
+                block.localHitbox = AABB(glm::vec3(0.0f), glm::vec3(0.0f));
+                block.hasHitbox   = false;
+            }
+
+            // --- Texture / UV setup ---
             if (blockJson.contains("textures") && !blockJson["textures"].is_null()) {
                 const auto& texJson = blockJson["textures"];
-                
-                // Helper to get UV from atlas
+
+                // Helper that pulls UVs from the atlas using texture "name"
                 auto getUV = [&atlas](const nlohmann::json& texData) -> UVCoords {
-                    if (texData.contains("uv")) {
-                        UVCoords uv;
-                        uv.min.x = texData["uv"]["min"][0].get<float>();
-                        uv.min.y = texData["uv"]["min"][1].get<float>();
-                        uv.max.x = texData["uv"]["max"][0].get<float>();
-                        uv.max.y = texData["uv"]["max"][1].get<float>();
-
-                        // Flip V for OpenGL (image was flipped on load with stbi)
-                        uv.min.y = 1.0f - uv.min.y;
-                        uv.max.y = 1.0f - uv.max.y;
-                        std::swap(uv.min.y, uv.max.y);
-
-                        return uv;
+                    if (texData.contains("name")) {
+                        const std::string texName = texData["name"].get<std::string>();
+                        return atlas.getUV(texName);
                     }
                     return UVCoords{};
                 };
-                
-                // Check for "all" texture (same on all faces)
+
+                // "all": same texture on all faces
                 if (texJson.contains("all")) {
-                    UVCoords uv = getUV(texJson["all"]);
-                    block.textures.topTexture = texJson["all"]["name"].get<std::string>();
+                    UVCoords uvAll = getUV(texJson["all"]);
+
+                    block.textures.topTexture    = texJson["all"]["name"].get<std::string>();
                     block.textures.bottomTexture = block.textures.topTexture;
-                    block.textures.sideTexture = block.textures.topTexture;
-                    
+                    block.textures.sideTexture   = block.textures.topTexture;
+
                     for (int i = 0; i < 6; ++i) {
-                        block.textures.faceUVs[i] = uv;
+                        block.textures.faceUVs[i] = uvAll;
                     }
                 } else {
-                    // Individual face textures
+                    // Per-face
                     if (texJson.contains("top")) {
-                        block.textures.topTexture = texJson["top"]["name"].get<std::string>();
-                        block.textures.faceUVs[static_cast<size_t>(BlockFace::Top)] = getUV(texJson["top"]);
+                        block.textures.topTexture =
+                            texJson["top"]["name"].get<std::string>();
+                        block.textures.faceUVs[static_cast<size_t>(BlockFace::Top)] =
+                            getUV(texJson["top"]);
                     }
-                    
+
                     if (texJson.contains("bottom")) {
-                        block.textures.bottomTexture = texJson["bottom"]["name"].get<std::string>();
-                        block.textures.faceUVs[static_cast<size_t>(BlockFace::Bottom)] = getUV(texJson["bottom"]);
+                        block.textures.bottomTexture =
+                            texJson["bottom"]["name"].get<std::string>();
+                        block.textures.faceUVs[static_cast<size_t>(BlockFace::Bottom)] =
+                            getUV(texJson["bottom"]);
                     }
-                    
-                    // Side texture applies to all 4 sides
+
                     if (texJson.contains("side")) {
-                        block.textures.sideTexture = texJson["side"]["name"].get<std::string>();
+                        block.textures.sideTexture =
+                            texJson["side"]["name"].get<std::string>();
                         UVCoords sideUV = getUV(texJson["side"]);
                         block.textures.faceUVs[static_cast<size_t>(BlockFace::North)] = sideUV;
                         block.textures.faceUVs[static_cast<size_t>(BlockFace::South)] = sideUV;
-                        block.textures.faceUVs[static_cast<size_t>(BlockFace::East)] = sideUV;
-                        block.textures.faceUVs[static_cast<size_t>(BlockFace::West)] = sideUV;
+                        block.textures.faceUVs[static_cast<size_t>(BlockFace::East)]  = sideUV;
+                        block.textures.faceUVs[static_cast<size_t>(BlockFace::West)]  = sideUV;
                     }
-                    
-                    // Individual side overrides (e.g., furnace front)
+
+                    // Front override (e.g., furnace front)
                     if (texJson.contains("front")) {
-                        block.textures.southTexture = texJson["front"]["name"].get<std::string>();
-                        block.textures.faceUVs[static_cast<size_t>(BlockFace::South)] = getUV(texJson["front"]);
+                        block.textures.southTexture =
+                            texJson["front"]["name"].get<std::string>();
+                        block.textures.faceUVs[static_cast<size_t>(BlockFace::South)] =
+                            getUV(texJson["front"]);
                     }
                 }
             }
-            
+
             // Ensure blocks vector is large enough
             if (block.id >= m_blocks.size()) {
                 m_blocks.resize(block.id + 1);
             }
             m_blocks[block.id] = std::move(block);
         }
-        
-        // Setup air block (always ID 0)
-        m_airBlock.id = 0;
-        m_airBlock.name = "Air";
-        m_airBlock.isOpaque = false;
-        m_airBlock.isSolid = false;
+
+        // Air (ID 0)
+        m_airBlock.id            = 0;
+        m_airBlock.name          = "Air";
+        m_airBlock.isOpaque      = false;
+        m_airBlock.isSolid       = false;
         m_airBlock.isTransparent = true;
-        
-        std::cout << "Loaded " << m_blocks.size() << " block definitions" << std::endl;
+        m_airBlock.localHitbox   = AABB(glm::vec3(0.0f), glm::vec3(0.0f));
+        m_airBlock.hasHitbox     = false;
+
+        std::cout << "Loaded " << m_blocks.size() << " block definitions\n";
         return true;
-        
+
     } catch (const std::exception& e) {
         std::cerr << "Error parsing block registry: " << e.what() << std::endl;
         return false;
@@ -150,6 +158,11 @@ bool BlockDatabase::isOpaque(uint8_t id) const {
 
 bool BlockDatabase::isSolid(uint8_t id) const {
     return getBlock(id).isSolid;
+}
+
+const AABB& BlockDatabase::getLocalHitbox(uint8_t id) const {
+    const BlockDefinition& block = getBlock(id);
+    return block.localHitbox;
 }
 
 } // namespace MCPP
