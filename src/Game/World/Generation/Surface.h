@@ -12,6 +12,9 @@ struct SurfaceSample {
     uint8_t stoneBlock;   // base stone layer
 };
 
+// Forward declare TerrainNoise for interface
+class TerrainNoise;
+
 /**
  * Base interface for a "surface generator".
  *
@@ -26,4 +29,11 @@ public:
      * Sample the terrain height and layers at a given world X/Z.
      */
     virtual SurfaceSample sampleColumn(int worldX, int worldZ) const = 0;
+
+    /**
+     * Get access to the underlying TerrainNoise for parameter tweaking.
+     * Returns nullptr if this surface doesn't use TerrainNoise.
+     */
+    virtual TerrainNoise* getTerrainNoise() { return nullptr; }
+    virtual const TerrainNoise* getTerrainNoise() const { return nullptr; }
 };

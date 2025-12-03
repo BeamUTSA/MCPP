@@ -39,10 +39,17 @@ public:
         // Get block type at world coordinates, returns 0 if chunk not loaded
         uint8_t getBlock(const glm::ivec3& worldPos) const {
         return getBlock(worldPos.x, worldPos.y, worldPos.z);
+        }
 
         // Returns highest solid block y at a world (x,z), or -1 if none.
         int getHighestSolidYAt(int worldX, int worldZ);
-}
+
+        // Access to surface manager for terrain tweaking
+        SurfaceManager& getSurfaceManager() { return m_surfaceManager; }
+        const SurfaceManager& getSurfaceManager() const { return m_surfaceManager; }
+
+        // Reload all chunks (useful after changing terrain parameters)
+        void reloadAllChunks();
 
 private:
     MinecraftApp& m_app;

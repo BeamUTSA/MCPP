@@ -40,6 +40,10 @@ public:
     bool isWireframeEnabled() const { return m_wireframe; }
     void setWireframeEnabled(bool enabled) { m_wireframe = enabled; }
 
+    // Pause mode flag exposed for ImGui and input
+    bool isPaused() const { return m_paused; }
+    void setPaused(bool paused);
+
     // Query a block by world position, used by Chunk/Player for logic
     uint8_t getBlock(glm::ivec3 worldPos) const;
 
@@ -47,6 +51,7 @@ private:
     // Per-frame helpers
     void processInput() const;
     void renderFrame();
+    void renderTerrainTweakingPanel();
 
     // Window / timing
     GLFWwindow* m_window{nullptr};
@@ -77,4 +82,9 @@ private:
 
     // Wireframe toggle (default: solid fill)
     bool m_wireframe{false};
+
+    // Pause state (default: not paused)
+    bool m_paused{false};
+    bool m_lastPauseKeyState{false}; // For detecting key press edges
+    bool m_lastReloadKeyState{false}; // For detecting R key press edges
 };

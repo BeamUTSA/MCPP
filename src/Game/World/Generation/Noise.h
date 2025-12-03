@@ -7,6 +7,51 @@
 #include <memory>
 
 /**
+ * Structure to hold all terrain generation parameters for easy tweaking
+ */
+struct TerrainParams {
+    // Continentalness parameters
+    int continentalnessOctaves = 4;
+    float continentalnessLacunarity = 2.0f;
+    float continentalnessGain = 0.5f;
+    float continentalnessFrequency = 0.0008f;
+
+    // Erosion parameters
+    int erosionOctaves = 5;
+    float erosionLacunarity = 2.0f;
+    float erosionGain = 0.5f;
+    float erosionFrequency = 0.002f;
+
+    // Peaks/Valleys parameters
+    int peaksValleysOctaves = 4;
+    float peaksValleysLacunarity = 2.0f;
+    float peaksValleysGain = 0.6f;
+    float peaksValleysFrequency = 0.005f;
+
+    // Domain warp parameters
+    int domainWarpOctaves = 3;
+    float domainWarpFrequency = 0.003f;
+    float domainWarpStrength = 32.0f;
+
+    // Detail parameters
+    int detailOctaves = 3;
+    float detailLacunarity = 2.0f;
+    float detailGain = 0.5f;
+    float detailFrequency = 0.01f;
+
+    // Height generation parameters
+    float oceanDepthMultiplier = 40.0f;
+    float beachHeightMultiplier = 20.0f;
+    float landHeightMultiplier = 60.0f;
+    float mountainHeightMultiplier = 80.0f;
+    float hillHeightMultiplier = 8.0f;
+    float detailHeightMultiplier = 3.0f;
+
+    // Water level
+    int waterLevel = 48;
+};
+
+/**
  * Advanced noise generation for smooth, realistic Minecraft/Tectonic-like terrain.
  *
  * This system uses FastNoiseLite to generate smooth Perlin/Simplex noise with:
@@ -14,12 +59,18 @@
  * - Domain warping for organic shapes
  * - Multiple noise layers (continentalness, erosion, peaks/valleys)
  */
-
 class TerrainNoise {
 public:
     explicit TerrainNoise(uint32_t seed = 1337u) : m_seed(seed) {
         initializeNoiseGenerators();
     }
+
+    // Access to parameters for runtime editing
+    TerrainParams& getParams() { return m_params; }
+    const TerrainParams& getParams() const { return m_params; }
+
+    // Call this after modifying parameters to rebuild noise generators
+    void updateNoiseGenerators() { initializeNoiseGenerators(); }
 
     /**
      * Sample continentalness - determines ocean vs land and broad terrain shape.
@@ -62,7 +113,7 @@ public:
      * Adds organic, flowing character to terrain.
      */
     float sampleDomainWarpX(float x, float z) const {
-        return m_domainWarp->GetNoise(x * 0.3f, z * 0.3f) * 32.0f;
+        return m_domainWarp->GetNoise(x * 0.3f, z * 0.3f) * m_params.domainWarpStrength;
     }
 
     /**
@@ -70,7 +121,7 @@ public:
      */
     float sampleDomainWarpZ(float x, float z) const {
         // Use slightly offset seed for different warp pattern
-        return m_domainWarp->GetNoise(x * 0.3f + 1000.0f, z * 0.3f + 1000.0f) * 32.0f;
+        return m_domainWarp->GetNoise(x * 0.3f + 1000.0f, z * 0.3f + 1000.0f) * m_params.domainWarpStrength;
     }
 
     /**
@@ -101,13 +152,13 @@ public:
         float baseHeight = 0.0f;
         if (continentalness < 0.45f) {
             // Ocean - gradually deepening
-            baseHeight = (continentalness - 0.45f) * 40.0f; // -18 to 0
+            baseHeight = (continentalness - 0.45f) * m_params.oceanDepthMultiplier;
         } else if (continentalness < 0.55f) {
             // Beach/shore - slight elevation
-            baseHeight = (continentalness - 0.45f) * 20.0f; // 0 to 2
+            baseHeight = (continentalness - 0.45f) * m_params.beachHeightMultiplier;
         } else {
             // Land - rising terrain
-            baseHeight = (continentalness - 0.55f) * 60.0f; // 0 to 27
+            baseHeight = (continentalness - 0.55f) * m_params.landHeightMultiplier;
         }
 
         // Mountain height based on erosion (inverted - low erosion = flat, high erosion = mountains)
@@ -126,16 +177,16 @@ public:
         float totalHeight = baseHeight;
 
         // Add mountain height (can be very tall)
-        totalHeight += mountainFactor * 80.0f * (localHeight * 0.5f + 0.5f); // 0 to 80 blocks for mountains
+        totalHeight += mountainFactor * m_params.mountainHeightMultiplier * (localHeight * 0.5f + 0.5f);
 
         // Add local variation (smaller scale)
         if (mountainFactor < 0.5f) {
             // In non-mountainous areas, add gentle rolling hills
-            totalHeight += localHeight * 8.0f * (1.0f - mountainFactor);
+            totalHeight += localHeight * m_params.hillHeightMultiplier * (1.0f - mountainFactor);
         }
 
         // Add fine detail
-        totalHeight += (detail - 0.5f) * 3.0f;
+        totalHeight += (detail - 0.5f) * m_params.detailHeightMultiplier;
 
         return totalHeight;
     }
@@ -146,47 +197,48 @@ private:
         m_continentalness = std::make_unique<FastNoiseLite>(m_seed);
         m_continentalness->SetNoiseType(FastNoiseLite::NoiseType_Perlin);
         m_continentalness->SetFractalType(FastNoiseLite::FractalType_FBm);
-        m_continentalness->SetFractalOctaves(4);
-        m_continentalness->SetFractalLacunarity(2.0f);
-        m_continentalness->SetFractalGain(0.5f);
-        m_continentalness->SetFrequency(0.0008f); // Very large scale
+        m_continentalness->SetFractalOctaves(m_params.continentalnessOctaves);
+        m_continentalness->SetFractalLacunarity(m_params.continentalnessLacunarity);
+        m_continentalness->SetFractalGain(m_params.continentalnessGain);
+        m_continentalness->SetFrequency(m_params.continentalnessFrequency);
 
         // Erosion - medium scale
         m_erosion = std::make_unique<FastNoiseLite>(m_seed + 1);
         m_erosion->SetNoiseType(FastNoiseLite::NoiseType_Perlin);
         m_erosion->SetFractalType(FastNoiseLite::FractalType_FBm);
-        m_erosion->SetFractalOctaves(5);
-        m_erosion->SetFractalLacunarity(2.0f);
-        m_erosion->SetFractalGain(0.5f);
-        m_erosion->SetFrequency(0.002f);
+        m_erosion->SetFractalOctaves(m_params.erosionOctaves);
+        m_erosion->SetFractalLacunarity(m_params.erosionLacunarity);
+        m_erosion->SetFractalGain(m_params.erosionGain);
+        m_erosion->SetFrequency(m_params.erosionFrequency);
 
         // Peaks and valleys - local variation
         m_peaksValleys = std::make_unique<FastNoiseLite>(m_seed + 2);
         m_peaksValleys->SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
         m_peaksValleys->SetFractalType(FastNoiseLite::FractalType_FBm);
-        m_peaksValleys->SetFractalOctaves(4);
-        m_peaksValleys->SetFractalLacunarity(2.0f);
-        m_peaksValleys->SetFractalGain(0.6f);
-        m_peaksValleys->SetFrequency(0.005f);
+        m_peaksValleys->SetFractalOctaves(m_params.peaksValleysOctaves);
+        m_peaksValleys->SetFractalLacunarity(m_params.peaksValleysLacunarity);
+        m_peaksValleys->SetFractalGain(m_params.peaksValleysGain);
+        m_peaksValleys->SetFrequency(m_params.peaksValleysFrequency);
 
         // Domain warp - for organic shapes
         m_domainWarp = std::make_unique<FastNoiseLite>(m_seed + 3);
         m_domainWarp->SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
         m_domainWarp->SetFractalType(FastNoiseLite::FractalType_FBm);
-        m_domainWarp->SetFractalOctaves(3);
-        m_domainWarp->SetFrequency(0.003f);
+        m_domainWarp->SetFractalOctaves(m_params.domainWarpOctaves);
+        m_domainWarp->SetFrequency(m_params.domainWarpFrequency);
 
         // Detail - fine-scale features
         m_detail = std::make_unique<FastNoiseLite>(m_seed + 4);
         m_detail->SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
         m_detail->SetFractalType(FastNoiseLite::FractalType_FBm);
-        m_detail->SetFractalOctaves(3);
-        m_detail->SetFractalLacunarity(2.0f);
-        m_detail->SetFractalGain(0.5f);
-        m_detail->SetFrequency(0.01f);
+        m_detail->SetFractalOctaves(m_params.detailOctaves);
+        m_detail->SetFractalLacunarity(m_params.detailLacunarity);
+        m_detail->SetFractalGain(m_params.detailGain);
+        m_detail->SetFrequency(m_params.detailFrequency);
     }
 
     uint32_t m_seed;
+    TerrainParams m_params;
     std::unique_ptr<FastNoiseLite> m_continentalness;
     std::unique_ptr<FastNoiseLite> m_erosion;
     std::unique_ptr<FastNoiseLite> m_peaksValleys;

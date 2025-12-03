@@ -186,3 +186,17 @@ void ChunkManager::processPendingChunks(int maxPerFrame) {
     }
 }
 
+void ChunkManager::reloadAllChunks() {
+    // Clear the pending queue
+    while (!m_pendingChunks.empty()) {
+        m_pendingChunks.pop();
+    }
+
+    // Regenerate and rebuild all existing chunks
+    for (auto& pair : m_chunks) {
+        auto& chunk = *pair.second;
+        chunk.generate(m_surfaceManager);
+        chunk.buildMesh(m_app, m_atlas);
+    }
+}
+
