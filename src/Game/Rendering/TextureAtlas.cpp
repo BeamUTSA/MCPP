@@ -46,7 +46,6 @@ bool TextureAtlas::load(const std::string& atlasPath, const std::string& mapping
 
     if (!loadMapping(mappingPath)) {
         std::cerr << "Warning: Failed to load atlas mapping, UVs will be default\n";
-        // We still keep the texture; rendering will just use default UV (0..1).
     }
 
     return true;
@@ -71,8 +70,6 @@ bool TextureAtlas::loadImage(const std::string& path) {
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    // Pixel-perfect for block textures; this avoids interpolation bleed.
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
@@ -80,7 +77,6 @@ bool TextureAtlas::loadImage(const std::string& path) {
                  m_width, m_height, 0,
                  GL_RGBA, GL_UNSIGNED_BYTE, data);
 
-    // Mipmaps are generated but with MIN_FILTER=NEAREST only level 0 is used.
     glGenerateMipmap(GL_TEXTURE_2D);
 
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -99,41 +95,31 @@ bool TextureAtlas::loadMapping(const std::string& path) {
         nlohmann::json mapping;
         file >> mapping;
 
-        for (auto& [texName, texData] : mapping.items()) {
-            UVCoords uv;
+        const float atlasWidth = static_cast<float>(m_width);
+        const float atlasHeight = static_cast<float>(m_height);
+        constexpr int TILE_SIZE = 16;
 
+        // Half-texel inset to avoid texture bleeding from neighbors
+        const float inset = 0.5f / atlasWidth;
+
+        for (auto& [texName, texData] : mapping.items()) {
             if (texData.contains("pixel")) {
                 auto& pixel = texData["pixel"];
-                int px = pixel[0].get<int>(); // pixel x in atlas
-                int py = pixel[1].get<int>(); // pixel y in atlas
+                int px = pixel[0].get<int>();
+                int py = pixel[1].get<int>();
 
-                constexpr int TILE_SIZE = 16;
+                // JSON provides top-left pixel coordinates.
+                // Image was flipped on load, so (0,0) in texture space is bottom-left.
+                // We must convert the JSON's top-left Y to a bottom-left Y.
+                float u_min = static_cast<float>(px) / atlasWidth;
+                float u_max = static_cast<float>(px + TILE_SIZE) / atlasWidth;
+                float v_min = static_cast<float>(m_height - (py + TILE_SIZE)) / atlasHeight;
+                float v_max = static_cast<float>(m_height - py) / atlasHeight;
 
-                float texelU = 1.0f / static_cast<float>(m_width);   // 1/4096
-                float texelV = 1.0f / static_cast<float>(m_height);  // 1/4096
-
-                // Half-texel inset to avoid touching neighbour tiles.
-                float insetU = texelU * 0.5f;
-                float insetV = texelV * 0.5f;
-
-                // NOTE: correct formula is (px * texel + inset), not (px + inset)*texel
-                float uMin = px * texelU + insetU;
-                float vMin = py * texelV + insetV;
-                float uMax = (px + TILE_SIZE) * texelU - insetU;
-                float vMax = (py + TILE_SIZE) * texelV - insetV;
-
-                uv.min.x = uMin;
-                uv.min.y = vMin;
-                uv.max.x = uMax;
-                uv.max.y = vMax;
-
-                // Flip V because image data was flipped on load for OpenGL
-                uv.min.y = 1.0f - uv.min.y;
-                uv.max.y = 1.0f - uv.max.y;
-                std::swap(uv.min.y, uv.max.y);
+                UVCoords& uv = m_uvMapping[texName];
+                uv.min = {u_min + inset, v_min + inset};
+                uv.max = {u_max - inset, v_max - inset};
             }
-
-            m_uvMapping[texName] = uv;
         }
 
         std::cout << "Loaded " << m_uvMapping.size() << " texture mappings\n";

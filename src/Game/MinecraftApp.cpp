@@ -52,7 +52,7 @@ bool MinecraftApp::init() {
 
     // --- GL state ---
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE_MODE); // keeping your working value
+    glEnable(GL_CULL_FACE); 
 
     // Capture mouse for FPS-style camera
     glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -143,9 +143,7 @@ void MinecraftApp::run() {
         processInput();
 
         // Stream/generate/unload chunks based on player/camera position
-        if (m_chunkManager) {
-            m_chunkManager->update(m_camera.getPosition());
-        }
+        m_chunkManager->update(m_camera.Position);
 
         // --- ImGui frame ---
         m_imguiLayer.beginFrame();
@@ -216,6 +214,8 @@ void MinecraftApp::renderFrame() {
     }
 
     m_shader->use();
+    m_shader->setInt("blockAtlas", 0);
+    m_textureAtlas.bind(0);
 
     glm::mat4 projection = m_camera.getProjectionMatrix(
         static_cast<float>(m_width),
@@ -230,14 +230,7 @@ void MinecraftApp::renderFrame() {
     // Update camera frustum for chunk culling
     m_camera.updateFrustum(static_cast<float>(m_width), static_cast<float>(m_height));
 
-    // Bind texture atlas
-    m_textureAtlas.bind(0);
-    m_shader->setInt("blockAtlas", 0);
-
-    // Render chunks via ChunkManager
-    if (m_chunkManager) {
-        m_chunkManager->render();
-    }
+    m_chunkManager->render();
 }
 
 void MinecraftApp::framebufferSizeCallback(GLFWwindow* window, int width, int height) {
@@ -302,10 +295,9 @@ void MinecraftApp::setPaused(bool paused) {
     }
 }
 
-void MinecraftApp::renderTerrainTweakingPanel() {
+void MinecraftApp::renderTerrainTweakingPanel() const {
     if (!m_chunkManager) return;
 
-    // Get access to terrain noise parameters
     auto* surface = m_chunkManager->getSurfaceManager().getDefaultSurface();
     if (!surface) return;
 
@@ -317,78 +309,72 @@ void MinecraftApp::renderTerrainTweakingPanel() {
 
     ImGui::Begin("Terrain Generation", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
-    ImGui::Text("Press TAB to toggle pause and access this panel");
+    ImGui::Text("Press TAB to toggle pause/use this panel • R = reload all chunks");
     ImGui::Separator();
 
-    // Continentalness Section
-    if (ImGui::CollapsingHeader("Continentalness (Large Scale)", ImGuiTreeNodeFlags_DefaultOpen)) {
-        paramsChanged |= ImGui::SliderInt("Octaves##cont", &params.continentalnessOctaves, 1, 8);
+    if (ImGui::CollapsingHeader("Continentalness (Tectonic Scale)", ImGuiTreeNodeFlags_DefaultOpen)) {
+        paramsChanged |= ImGui::SliderInt("Octaves##cont", &params.continentalnessOctaves, 3, 10);
+        paramsChanged |= ImGui::SliderFloat("Frequency##cont", &params.continentalnessFrequency, 0.00001f, 0.001f, "%.7f");
+        paramsChanged |= ImGui::SliderFloat("Gain##cont", &params.continentalnessGain, 0.0f, 1.0f);
         paramsChanged |= ImGui::SliderFloat("Lacunarity##cont", &params.continentalnessLacunarity, 1.0f, 4.0f);
-        paramsChanged |= ImGui::SliderFloat("Gain##cont", &params.continentalnessGain, 0.1f, 1.0f);
-        paramsChanged |= ImGui::SliderFloat("Frequency##cont", &params.continentalnessFrequency, 0.0001f, 0.01f, "%.5f");
     }
 
-    // Erosion Section
-    if (ImGui::CollapsingHeader("Erosion (Mountains)", ImGuiTreeNodeFlags_DefaultOpen)) {
-        paramsChanged |= ImGui::SliderInt("Octaves##ero", &params.erosionOctaves, 1, 8);
-        paramsChanged |= ImGui::SliderFloat("Lacunarity##ero", &params.erosionLacunarity, 1.0f, 4.0f);
-        paramsChanged |= ImGui::SliderFloat("Gain##ero", &params.erosionGain, 0.1f, 1.0f);
-        paramsChanged |= ImGui::SliderFloat("Frequency##ero", &params.erosionFrequency, 0.0001f, 0.01f, "%.5f");
+    if (ImGui::CollapsingHeader("Erosion (Mountain Placement)", ImGuiTreeNodeFlags_DefaultOpen)) {
+        paramsChanged |= ImGui::SliderInt("Octaves##ero", &params.erosionOctaves, 3, 10);
+        paramsChanged |= ImGui::SliderFloat("Frequency##ero", &params.erosionFrequency, 0.0001f, 0.01f, "%.6f");
     }
 
-    // Peaks/Valleys Section
-    if (ImGui::CollapsingHeader("Peaks & Valleys (Local)", ImGuiTreeNodeFlags_DefaultOpen)) {
-        paramsChanged |= ImGui::SliderInt("Octaves##pv", &params.peaksValleysOctaves, 1, 8);
-        paramsChanged |= ImGui::SliderFloat("Lacunarity##pv", &params.peaksValleysLacunarity, 1.0f, 4.0f);
-        paramsChanged |= ImGui::SliderFloat("Gain##pv", &params.peaksValleysGain, 0.1f, 1.0f);
-        paramsChanged |= ImGui::SliderFloat("Frequency##pv", &params.peaksValleysFrequency, 0.0001f, 0.02f, "%.5f");
+    if (ImGui::CollapsingHeader("Ridges & Valleys (Ridged Peaks)", ImGuiTreeNodeFlags_DefaultOpen)) {
+        paramsChanged |= ImGui::SliderInt("Octaves##pv", &params.peaksValleysOctaves, 4, 12);
+        paramsChanged |= ImGui::SliderFloat("Frequency##pv", &params.peaksValleysFrequency, 0.0005f, 0.02f, "%.6f");
+        paramsChanged |= ImGui::SliderFloat("Gain##pv", &params.peaksValleysGain, 0.4f, 1.8f);
     }
 
-    // Domain Warp Section
-    if (ImGui::CollapsingHeader("Domain Warp (Organic Shape)", ImGuiTreeNodeFlags_DefaultOpen)) {
-        paramsChanged |= ImGui::SliderInt("Octaves##dw", &params.domainWarpOctaves, 1, 8);
-        paramsChanged |= ImGui::SliderFloat("Frequency##dw", &params.domainWarpFrequency, 0.0001f, 0.01f, "%.5f");
-        paramsChanged |= ImGui::SliderFloat("Strength##dw", &params.domainWarpStrength, 0.0f, 100.0f);
+    if (ImGui::CollapsingHeader("Domain Warp (Continent Shape)", ImGuiTreeNodeFlags_DefaultOpen)) {
+        paramsChanged |= ImGui::SliderInt("Octaves##dw", &params.domainWarpOctaves, 3, 12);
+        paramsChanged |= ImGui::SliderFloat("Frequency##dw", &params.domainWarpFrequency, 0.0005f, 0.01f, "%.6f");
+        paramsChanged |= ImGui::SliderFloat("Amplitude##dw", &params.domainWarpAmplitude, 0.0f, 600.0f, "%.1f");
     }
 
-    // Detail Section
-    if (ImGui::CollapsingHeader("Detail Noise (Fine Features)", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (ImGui::CollapsingHeader("Detail Noise", ImGuiTreeNodeFlags_DefaultOpen)) {
         paramsChanged |= ImGui::SliderInt("Octaves##det", &params.detailOctaves, 1, 8);
-        paramsChanged |= ImGui::SliderFloat("Lacunarity##det", &params.detailLacunarity, 1.0f, 4.0f);
-        paramsChanged |= ImGui::SliderFloat("Gain##det", &params.detailGain, 0.1f, 1.0f);
-        paramsChanged |= ImGui::SliderFloat("Frequency##det", &params.detailFrequency, 0.001f, 0.05f, "%.5f");
+        paramsChanged |= ImGui::SliderFloat("Frequency##det", &params.detailFrequency, 0.005f, 0.06f, "%.4f");
     }
 
     ImGui::Separator();
 
-    // Height Multipliers Section
     if (ImGui::CollapsingHeader("Height Multipliers", ImGuiTreeNodeFlags_DefaultOpen)) {
-        paramsChanged |= ImGui::SliderFloat("Ocean Depth", &params.oceanDepthMultiplier, 10.0f, 100.0f);
-        paramsChanged |= ImGui::SliderFloat("Beach Height", &params.beachHeightMultiplier, 5.0f, 50.0f);
-        paramsChanged |= ImGui::SliderFloat("Land Height", &params.landHeightMultiplier, 20.0f, 150.0f);
-        paramsChanged |= ImGui::SliderFloat("Mountain Height", &params.mountainHeightMultiplier, 30.0f, 200.0f);
-        paramsChanged |= ImGui::SliderFloat("Hill Height", &params.hillHeightMultiplier, 2.0f, 30.0f);
-        paramsChanged |= ImGui::SliderFloat("Detail Height", &params.detailHeightMultiplier, 1.0f, 15.0f);
+        paramsChanged |= ImGui::SliderFloat("Ocean Depth", &params.oceanDepthMultiplier, 20.0f, 250.0f);
+        paramsChanged |= ImGui::SliderFloat("Beach Height", &params.beachHeightMultiplier, 10.0f, 100.0f);
+        paramsChanged |= ImGui::SliderFloat("Land Height", &params.landHeightMultiplier, 80.0f, 300.0f);
+        paramsChanged |= ImGui::SliderFloat("Mountain Height", &params.mountainHeightMultiplier, 200.0f, 600.0f);
+        paramsChanged |= ImGui::SliderFloat("Hill Height", &params.hillHeightMultiplier, 20.0f, 120.0f);
+        paramsChanged |= ImGui::SliderFloat("Detail Height", &params.detailHeightMultiplier, 4.0f, 40.0f);
     }
 
-    ImGui::Separator();
-
-    // Water Level
-    paramsChanged |= ImGui::SliderInt("Water Level", &params.waterLevel, 0, 128);
+    paramsChanged |= ImGui::SliderInt("Water Level", &params.waterLevel, 40, 100);
 
     ImGui::Separator();
 
-    // Update noise generators if parameters changed
     if (paramsChanged) {
         terrainNoise->updateNoiseGenerators();
+        m_chunkManager->reloadAllChunks();  // now instant thanks to deferred system!
     }
 
-    // Reload chunks button
+    if (ImGui::Button("Reset to God-Tier Settings", ImVec2(200, 30))) {
+        params = TerrainParams{};  // resets to the defaults we set in Noise.h (the perfect ones)
+        terrainNoise->updateNoiseGenerators();
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("(Instant reset)");
+
+    ImGui::Separator();
+
     if (ImGui::Button("Reload All Chunks", ImVec2(200, 30))) {
         m_chunkManager->reloadAllChunks();
-    }
+    }  // ← THIS BRACE WAS MISSING BEFORE ←
     ImGui::SameLine();
     ImGui::TextDisabled("(R key)");
 
-    ImGui::End();
+    ImGui::End();  // now always called every frame
 }

@@ -50,59 +50,44 @@ std::unique_ptr<Surface> createDefaultSurface(uint32_t seed) {
 
 
 SurfaceSample ImprovedSurface::sampleColumn(int worldX, int worldZ) const {
-    // Use the advanced terrain noise system
     float terrainHeight = m_noise.sampleTerrainHeight(
         static_cast<float>(worldX),
         static_cast<float>(worldZ)
     );
 
-    // Add base water level to convert to absolute height
     const int WATER_LEVEL = m_noise.getParams().waterLevel;
     int absoluteHeight = WATER_LEVEL + static_cast<int>(terrainHeight);
-
-    // Clamp to reasonable range (0 to 255 for standard Minecraft-like world)
     absoluteHeight = std::max(0, std::min(255, absoluteHeight));
 
-    // Get individual noise values for biome-like decisions
-    float warpedX = worldX + m_noise.sampleDomainWarpX(worldX, worldZ);
-    float warpedZ = worldZ + m_noise.sampleDomainWarpZ(worldX, worldZ);
+    // Apply the exact same domain warp as in sampleTerrainHeight
+    float warpedX = static_cast<float>(worldX);
+    float warpedZ = static_cast<float>(worldZ);
+    m_noise.applyDomainWarp(warpedX, warpedZ);
+
     float continentalness = m_noise.sampleContinentalness(warpedX, warpedZ);
     float erosion = m_noise.sampleErosion(warpedX, warpedZ);
 
     SurfaceSample s{};
     s.height = absoluteHeight;
 
-    // Determine surface blocks based on terrain type
+    // Better block placement (more realistic beaches, snow, exposed stone)
     if (absoluteHeight < WATER_LEVEL) {
-        // Underwater - use sand on ocean floor
         s.topBlock = m_sandId;
         s.fillerBlock = m_sandId;
-        s.stoneBlock = m_stoneId;
-    }
-    else if (absoluteHeight < WATER_LEVEL + 3) {
-        // Beach areas - sandy shores
+    } else if (absoluteHeight < WATER_LEVEL + 6) {
         s.topBlock = m_sandId;
         s.fillerBlock = m_sandId;
-        s.stoneBlock = m_stoneId;
-    }
-    else if (absoluteHeight > 120 && erosion < 0.3f) {
-        // High mountain peaks - snow-capped
+    } else if (absoluteHeight > 140 || (absoluteHeight > 100 && erosion < 0.28f)) {
         s.topBlock = m_snowId;
         s.fillerBlock = m_stoneId;
-        s.stoneBlock = m_stoneId;
-    }
-    else if (erosion < 0.35f && continentalness > 0.55f) {
-        // Mountain areas - exposed stone
+    } else if (erosion < 0.4f) {
         s.topBlock = m_stoneId;
         s.fillerBlock = m_stoneId;
-        s.stoneBlock = m_stoneId;
-    }
-    else {
-        // Normal land - grass and dirt
+    } else {
         s.topBlock = m_grassId;
         s.fillerBlock = m_dirtId;
-        s.stoneBlock = m_stoneId;
     }
 
+    s.stoneBlock = m_stoneId;
     return s;
 }

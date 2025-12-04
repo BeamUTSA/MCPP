@@ -51,7 +51,7 @@ private:
     // Per-frame helpers
     void processInput() const;
     void renderFrame();
-    void renderTerrainTweakingPanel();
+    void renderTerrainTweakingPanel() const;
 
     // Window / timing
     GLFWwindow* m_window{nullptr};

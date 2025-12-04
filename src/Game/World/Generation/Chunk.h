@@ -4,6 +4,8 @@
 #include <glm/glm.hpp>
 #include <vector>
 #include <array>
+#include <queue>
+#include <thread>
 
 #include "Game/World/Generation/SurfaceManager.h"
 
@@ -75,7 +77,7 @@ public:
     /**
      * Mark chunk as needing mesh rebuild.
      */
-    void markDirty() { m_dirty = true; }
+    bool markDirty(bool dirty) { return m_dirty = dirty; }
 
     /**
      * Get world position of chunk origin.
@@ -99,20 +101,61 @@ public:
         );
     }
 
+    void uploadMesh(const std::vector<ChunkVertex>& vertices) {
+        m_vertexCount = static_cast<uint32_t>(vertices.size());
+
+        if (vertices.empty()) {
+            m_dirty = false;
+            return;
+        }
+
+        if (m_vao == 0) glGenVertexArrays(1, &m_vao);
+        if (m_vbo == 0) glGenBuffers(1, &m_vbo);
+
+        glBindVertexArray(m_vao);
+        glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(ChunkVertex), vertices.data(), GL_STATIC_DRAW);
+
+        // === CORRECT ATTRIBUTE SETUP ===
+        // 0: position
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ChunkVertex), (void*)offsetof(ChunkVertex, position));
+        glEnableVertexAttribArray(0);
+
+        // 1: normal
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(ChunkVertex), (void*)offsetof(ChunkVertex, normal));
+        glEnableVertexAttribArray(1);
+
+        // 2: texCoord
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(ChunkVertex), (void*)offsetof(ChunkVertex, texCoord));
+        glEnableVertexAttribArray(2);
+
+        // 3: tileScale (vec2)
+        glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(ChunkVertex), (void*)offsetof(ChunkVertex, tileScale));
+        glEnableVertexAttribArray(3);
+
+        // 4: ao (float)
+        glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, sizeof(ChunkVertex), (void*)offsetof(ChunkVertex, ao));
+        glEnableVertexAttribArray(4);
+
+        glBindVertexArray(0);
+        m_dirty = false;
+    }
+
     /**
      * Check if this chunk has any renderable geometry.
      */
-    bool hasGeometry() const { return m_indexCount > 0; }
+    bool hasGeometry() const { return m_vertexCount > 0; }
 
 private:
     // Block data storage: m_blocks[x][y][z]
     std::array<std::array<std::array<uint8_t, CHUNK_SIZE>, CHUNK_HEIGHT>, CHUNK_SIZE> m_blocks{};
 
+    /*---------------------------------------------------------------------*/
     // OpenGL resources
     GLuint    m_vao{0};
     GLuint    m_vbo{0};
     GLuint    m_ebo{0};
-    uint32_t  m_indexCount{0};
+    uint32_t  m_vertexCount{0};
 
     bool m_dirty{true};
 
@@ -130,4 +173,5 @@ private:
     bool  isBlockOpaque(int x, int y, int z, const MinecraftApp& app) const;
     float calculateAO  (int x, int y, int z, int dx, int dy, int dz,
                         int axis, const MinecraftApp& app) const;
+    
 };

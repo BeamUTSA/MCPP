@@ -1,5 +1,6 @@
 #pragma once
 
+#include <condition_variable>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp> // Include for glm::translate
 #include <unordered_map>
@@ -60,6 +61,37 @@ private:
     int m_renderDistance{12}; // Chunks in each direction from player
 
     std::queue<glm::ivec3> m_pendingChunks; // queue chunks so PC don't die ;/
+
+    // === DEFERRED PIPELINE ===
+    std::queue<glm::ivec3> m_generationQueue;   // only terrain gen
+    std::queue<glm::ivec3> m_meshingQueue;       // only mesh build
+
+    mutable std::mutex m_chunkMutex;
+
+    std::atomic<bool> m_shutdownThreads{false};
+    std::vector<std::thread> m_workerThreads;
+
+    void generationThreadFunc();
+    void meshingThreadFunc();
+
+    // === MULTITHREADED MESHING SYSTEM ===
+    struct MeshTask {
+        glm::ivec3 chunkCoords;
+        std::vector<ChunkVertex> vertices;
+    };
+
+    std::queue<MeshTask>   m_uploadQueue;         // Step 3: VBO upload (main thread only)
+
+    std::mutex              m_taskMutex;
+    std::condition_variable m_taskCV;
+    std::atomic<bool>       m_shutdown{false};
+
+    std::vector<std::thread> m_generationWorkers;
+    std::vector<std::thread> m_meshingWorkers;
+
+    void generationWorker();
+    void meshingWorker();
+    // ================================
 
     // Helper to get chunk coordinates from world coordinates
     glm::ivec3 getChunkCoords(const glm::vec3& worldPos) const;

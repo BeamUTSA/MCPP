@@ -1,37 +1,226 @@
 #include "Game/World/ChunkManager.h"
 #include "Game/MinecraftApp.h"
 #include "Game/Rendering/TextureAtlas.h"
-#include "Engine/Physics/Collision.h"
-#include "Game/World/Block/BlockDatabase.h"
-
-#include <imgui.h>
-
+#include "Game/World/Meshing/Greedy.h"
 #include <iostream>
+#include <thread>
+#include <chrono>
 
+using namespace Meshing;
 
 ChunkManager::ChunkManager(MinecraftApp& app, MCPP::TextureAtlas& atlas)
-    : m_app(app)
-    , m_atlas(atlas)
-    , m_surfaceManager(1337u)   // world seed; later we can pass from app
+    : m_app(app), m_atlas(atlas), m_surfaceManager(1337u)
 {
-    // ...
-}
+    const unsigned int threads = std::max(2u, std::thread::hardware_concurrency());
 
+    // 2 generation threads + (threads-2) meshing threads
+    for (unsigned int i = 0; i < 2; ++i)
+        m_generationWorkers.emplace_back(&ChunkManager::generationWorker, this);
+
+    for (unsigned int i = 0; i < threads - 2; ++i)
+        m_meshingWorkers.emplace_back(&ChunkManager::meshingWorker, this);
+}
 
 ChunkManager::~ChunkManager() {
-    // Chunks are managed by unique_ptr, so they will be deallocated automatically
+    m_shutdown = true;
+    m_taskCV.notify_all();
+
+    for (auto& t : m_generationWorkers) if (t.joinable()) t.join();
+    for (auto& t : m_meshingWorkers)    if (t.joinable()) t.join();
 }
 
+void ChunkManager::generationWorker() {
+    while (!m_shutdown) {
+        glm::ivec3 coords;
+        {
+            std::unique_lock<std::mutex> lock(m_taskMutex);
+            m_taskCV.wait(lock, [this] { return !m_generationQueue.empty() || m_shutdown; });
+            if (m_shutdown) break;
+            if (m_generationQueue.empty()) continue;
+
+            coords = m_generationQueue.front();
+            m_generationQueue.pop();
+        }
+
+        auto it = m_chunks.find(coords);
+        if (it == m_chunks.end()) continue;
+
+        it->second->generate(m_surfaceManager);
+
+        {
+            std::lock_guard<std::mutex> lock(m_taskMutex);
+            m_meshingQueue.push(coords);
+        }
+        m_taskCV.notify_one();
+    }
+}
+
+void ChunkManager::meshingWorker() {
+    while (!m_shutdown) {
+        glm::ivec3 coords;
+        {
+            std::unique_lock<std::mutex> lock(m_taskMutex);
+            m_taskCV.wait(lock, [this] { return !m_meshingQueue.empty() || m_shutdown; });
+            if (m_shutdown) break;
+            if (m_meshingQueue.empty()) continue;
+
+            coords = m_meshingQueue.front();
+            m_meshingQueue.pop();
+        }
+
+        auto it = m_chunks.find(coords);
+        if (it == m_chunks.end()) continue;
+
+        std::vector<ChunkVertex> vertices;
+        vertices.reserve(40 * 1024);
+
+        buildGreedyMesh(*it->second, m_app, vertices);
+
+        {
+            std::lock_guard<std::mutex> lock(m_taskMutex);
+            m_uploadQueue.push({coords, std::move(vertices)});
+        }
+    }
+}
+
+void ChunkManager::loadChunk(const glm::ivec3& chunkCoords) {
+    std::lock_guard<std::mutex> lock(m_taskMutex);
+    if (m_chunks.contains(chunkCoords)) return;
+
+    auto chunk = std::make_unique<Chunk>(chunkCoords);
+    m_chunks[chunkCoords] = std::move(chunk);
+    m_generationQueue.push(chunkCoords);
+    m_taskCV.notify_one();
+}
+
+void ChunkManager::update(const glm::vec3& playerPosition) {
+    const int renderDistance = 24;  // or make it a member
+    const glm::ivec3 playerChunk = getChunkCoords(playerPosition);
+
+    std::vector<glm::ivec3> toLoad;
+    std::vector<glm::ivec3> toUnload;
+
+    // === LOAD NEW CHUNKS ===
+    for (int x = -renderDistance; x <= renderDistance; ++x) {
+        for (int z = -renderDistance; z <= renderDistance; ++z) {
+            glm::ivec3 coords(playerChunk.x + x, 0, playerChunk.z + z);
+            float dist = glm::distance(glm::vec2(coords.x, coords.z), glm::vec2(playerChunk.x, playerChunk.z));
+
+            if (dist <= renderDistance) {
+                if (m_chunks.find(coords) == m_chunks.end()) {
+                    toLoad.push_back(coords);
+                }
+            }
+        }
+    }
+
+    // === UNLOAD FAR CHUNKS ===
+    for (auto it = m_chunks.begin(); it != m_chunks.end(); ) {
+        float dist = glm::distance(glm::vec2(it->first.x, it->first.z), glm::vec2(playerChunk.x, playerChunk.z));
+        if (dist > renderDistance + 2) {
+            toUnload.push_back(it->first);
+            it = m_chunks.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    // === QUEUE NEW CHUNKS FOR GENERATION ===
+    {
+        std::lock_guard<std::mutex> lock(m_taskMutex);
+        for (auto& coords : toLoad) {
+            auto chunk = std::make_unique<Chunk>(coords);
+            m_chunks[coords] = std::move(chunk);
+            m_generationQueue.push(coords);
+        }
+        m_taskCV.notify_all();
+    }
+
+    // === UPLOAD FINISHED MESHES (main thread only) ===
+    const int MAX_UPLOAD_PER_FRAME = 16;
+    for (int i = 0; i < MAX_UPLOAD_PER_FRAME && !m_uploadQueue.empty(); ) {
+        MeshTask task;
+        {
+            std::lock_guard<std::mutex> lock(m_taskMutex);
+            if (m_uploadQueue.empty()) break;
+            task = std::move(m_uploadQueue.front());
+            m_uploadQueue.pop();
+        }
+
+        auto it = m_chunks.find(task.chunkCoords);
+        if (it != m_chunks.end()) {
+            it->second->uploadMesh(task.vertices);
+            it->second->markDirty(false);
+            ++i;
+        }
+    }
+}
+
+void ChunkManager::reloadAllChunks() {
+    std::lock_guard<std::mutex> lock(m_taskMutex);
+
+    // Clear queues
+    std::queue<glm::ivec3> emptyQ; std::swap(m_generationQueue, emptyQ);
+    std::queue<glm::ivec3> emptyM; std::swap(m_meshingQueue, emptyM);
+    std::queue<MeshTask>   emptyU; std::swap(m_uploadQueue, emptyU);
+
+    // Re-queue all chunks
+    for (auto& pair : m_chunks) {
+        pair.second->markDirty(false);
+        m_generationQueue.push(pair.first);
+    }
+
+    m_taskCV.notify_all();
+    std::cout << "[ChunkManager] Reloaded " << m_chunks.size() << " chunks (multithreaded, instant)\n";
+}
+
+// ============================================================================
+// RENDER ALL VISIBLE CHUNKS
+// ============================================================================
+void ChunkManager::render() const {
+    for (const auto& pair : m_chunks) {
+        const auto& chunk = pair.second;
+        if (chunk && chunk->hasGeometry()) {
+            chunk->render();
+        }
+    }
+}
+
+// ============================================================================
+// BLOCK QUERY — used by player, raycasting, etc.
+// ============================================================================
+uint8_t ChunkManager::getBlock(int x, int y, int z) const {
+    const glm::ivec3 worldPos(x, y, z);
+    const glm::ivec3 chunkCoords = getChunkCoords(glm::vec3(worldPos));
+    const glm::ivec3 local = getBlockLocalCoords(glm::vec3(worldPos));
+
+    auto it = m_chunks.find(chunkCoords);
+    if (it == m_chunks.end()) {
+        return 0; // air
+    }
+
+    if (local.y < 0 || local.y >= Chunk::CHUNK_HEIGHT) {
+        return 0;
+    }
+
+    return it->second->getBlock(local.x, local.y, local.z);
+}
+
+// ============================================================================
+// CHUNK COORDINATES FROM WORLD POSITION
+// ============================================================================
 glm::ivec3 ChunkManager::getChunkCoords(const glm::vec3& worldPos) const {
     return glm::ivec3(
         static_cast<int>(std::floor(worldPos.x / Chunk::CHUNK_SIZE)),
-        0, // Y-coordinate for chunk is always 0 for now, as chunks are vertical slices
+        0,
         static_cast<int>(std::floor(worldPos.z / Chunk::CHUNK_SIZE))
     );
 }
 
+// ============================================================================
+// LOCAL BLOCK COORDINATES INSIDE A CHUNK
+// ============================================================================
 glm::ivec3 ChunkManager::getBlockLocalCoords(const glm::vec3& worldPos) const {
-    // Ensure positive modulo for block coordinates
     int localX = static_cast<int>(worldPos.x) % Chunk::CHUNK_SIZE;
     if (localX < 0) localX += Chunk::CHUNK_SIZE;
     int localZ = static_cast<int>(worldPos.z) % Chunk::CHUNK_SIZE;
@@ -43,160 +232,3 @@ glm::ivec3 ChunkManager::getBlockLocalCoords(const glm::vec3& worldPos) const {
         localZ
     );
 }
-
-int ChunkManager::getHighestSolidYAt(int worldX, int worldZ) const {
-    auto& db = MCPP::BlockDatabase::instance();
-
-    for (int y = Chunk::CHUNK_HEIGHT - 1; y >= 0; --y) {
-        uint8_t id = getBlock(worldX, y, worldZ); // already handles missing chunks as air
-        if (db.isSolid(id)) {
-            return y;
-        }
-    }
-    return -1; // no solid block in this column
-}
-
-void ChunkManager::loadChunk(const glm::ivec3& chunkCoords) {
-    if (m_chunks.find(chunkCoords) == m_chunks.end()) {
-        // Create empty chunk and store it
-        auto chunk = std::make_unique<Chunk>(chunkCoords);
-        m_chunks[chunkCoords] = std::move(chunk);
-
-        // Defer heavy work
-        m_pendingChunks.push(chunkCoords);
-    }
-}
-
-void ChunkManager::unloadFarChunks(const glm::vec3& playerPosition) {
-    glm::ivec3 playerChunkCoords = getChunkCoords(playerPosition);
-
-    for (auto it = m_chunks.begin(); it != m_chunks.end(); ) {
-        const glm::ivec3& chunkCoords = it->first;
-        if (std::abs(chunkCoords.x - playerChunkCoords.x) > m_renderDistance ||
-            std::abs(chunkCoords.z - playerChunkCoords.z) > m_renderDistance) {
-            it = m_chunks.erase(it);
-        } else {
-            ++it;
-        }
-    }
-}
-
-void ChunkManager::update(const glm::vec3& playerPosition) {
-    glm::ivec3 playerChunkCoords = getChunkCoords(playerPosition);
-
-    // Enqueue new chunks around player
-    for (int x = -m_renderDistance; x <= m_renderDistance; ++x) {
-        for (int z = -m_renderDistance; z <= m_renderDistance; ++z) {
-            glm::ivec3 chunkCoordsToLoad(
-                playerChunkCoords.x + x,
-                0,
-                playerChunkCoords.z + z
-            );
-            loadChunk(chunkCoordsToLoad);
-        }
-    }
-
-    unloadFarChunks(playerPosition);
-
-    // Rebuild dirty meshes (usually only on edits)
-    for (auto& pair : m_chunks) {
-        if (pair.second->isDirty()) {
-            pair.second->buildMesh(m_app, m_atlas);
-        }
-    }
-
-    // NEW: build only a few queued chunks per frame
-    processPendingChunks(2);   // tweak this (2–4 is a good start)
-}
-
-void ChunkManager::render() const {
-    Shader* shader = m_app.getShader();
-    if (!shader) return;
-
-    const Frustum& cameraFrustum = m_app.getCamera().getFrustum();
-
-    int renderedChunks = 0;
-
-    for (const auto& pair : m_chunks) {
-        glm::vec3 chunkWorldPos = pair.second->getWorldPosition();
-        glm::vec3 chunkMax      = chunkWorldPos +
-                                  glm::vec3(Chunk::CHUNK_SIZE,
-                                            Chunk::CHUNK_HEIGHT,
-                                            Chunk::CHUNK_SIZE);
-
-        if (cameraFrustum.containsAABB(chunkWorldPos, chunkMax)) {
-            glm::mat4 model = glm::translate(glm::mat4(1.0f), chunkWorldPos);
-            shader->setMat4("model", model);
-            pair.second->render();
-            renderedChunks++;
-        }
-    }
-
-    // Persistent between frames (optional debug)
-    static int    lastRenderedChunks = -1;
-    static size_t lastTotalChunks    = 0;
-
-    if (renderedChunks != lastRenderedChunks || m_chunks.size() != lastTotalChunks) {
-        // ImGui  Log Out
-        if (ImGui::Begin("Culling log")) {
-            ImGui::TextUnformatted("Culled Chunks");
-            ImGui::Separator();
-            ImGui::Text("Rendered %d out of %zu chunks.", renderedChunks, m_chunks.size());
-        }
-        /* Console Log Out
-         *std::cout << "Rendered " << renderedChunks
-                  << " out of " << m_chunks.size() << " chunks.\n";
-        lastRenderedChunks = renderedChunks;
-        lastTotalChunks    = m_chunks.size();
-        */
-        ImGui::End();
-    }
-}
-
-uint8_t ChunkManager::getBlock(int x, int y, int z) const {
-    glm::vec3 worldPos(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z));
-    glm::ivec3 chunkCoords = getChunkCoords(worldPos);
-    glm::ivec3 blockLocalCoords = getBlockLocalCoords(worldPos);
-
-    auto it = m_chunks.find(chunkCoords);
-    if (it != m_chunks.end()) {
-        // Ensure local coordinates are within bounds before accessing
-        if (blockLocalCoords.x >= 0 && blockLocalCoords.x < Chunk::CHUNK_SIZE &&
-            blockLocalCoords.y >= 0 && blockLocalCoords.y < Chunk::CHUNK_HEIGHT &&
-            blockLocalCoords.z >= 0 && blockLocalCoords.z < Chunk::CHUNK_SIZE) {
-            return it->second->getBlock(blockLocalCoords.x, blockLocalCoords.y, blockLocalCoords.z);
-        }
-    }
-    return 0; // Return air (or some default empty block) if chunk not loaded or coordinates out of bounds
-}
-
-void ChunkManager::processPendingChunks(int maxPerFrame) {
-    int processed = 0;
-    while (!m_pendingChunks.empty() && processed < maxPerFrame) {
-        glm::ivec3 coords = m_pendingChunks.front();
-        m_pendingChunks.pop();
-
-        auto it = m_chunks.find(coords);
-        if (it == m_chunks.end()) continue; // could have been unloaded
-
-        auto& chunk = *it->second;
-        chunk.generate(m_surfaceManager);                    // terrain
-        chunk.buildMesh(m_app, m_atlas);     // mesh
-        ++processed;
-    }
-}
-
-void ChunkManager::reloadAllChunks() {
-    // Clear the pending queue
-    while (!m_pendingChunks.empty()) {
-        m_pendingChunks.pop();
-    }
-
-    // Regenerate and rebuild all existing chunks
-    for (auto& pair : m_chunks) {
-        auto& chunk = *pair.second;
-        chunk.generate(m_surfaceManager);
-        chunk.buildMesh(m_app, m_atlas);
-    }
-}
-

@@ -3,197 +3,134 @@
 
 #include <cstdint>
 #include <glm/glm.hpp>
-#include <FastNoiseLite.h>
+#include <cpp/FastNoiseLite.h>
 #include <memory>
 
 /**
- * Structure to hold all terrain generation parameters for easy tweaking
+ * Tuned for Tectonic/Terralith-quality terrain (2025 best practices)
  */
 struct TerrainParams {
-    // Continentalness parameters
-    int continentalnessOctaves = 4;
+    // Continentalness - tectonic plate scale
+    int continentalnessOctaves = 6;
     float continentalnessLacunarity = 2.0f;
     float continentalnessGain = 0.5f;
-    float continentalnessFrequency = 0.0008f;
+    float continentalnessFrequency = 0.00022f;   // huge continents
 
-    // Erosion parameters
-    int erosionOctaves = 5;
+    // Erosion
+    int erosionOctaves = 6;
     float erosionLacunarity = 2.0f;
     float erosionGain = 0.5f;
-    float erosionFrequency = 0.002f;
+    float erosionFrequency = 0.0011f;
 
-    // Peaks/Valleys parameters
-    int peaksValleysOctaves = 4;
-    float peaksValleysLacunarity = 2.0f;
-    float peaksValleysGain = 0.6f;
-    float peaksValleysFrequency = 0.005f;
+    // Peaks/Valleys → ridged multifractal (sharp tectonic ridges)
+    int peaksValleysOctaves = 7;
+    float peaksValleysLacunarity = 2.15f;
+    float peaksValleysGain = 0.7f;        // high gain = knife-edge ridges
+    float peaksValleysFrequency = 0.0022f;
 
-    // Domain warp parameters
-    int domainWarpOctaves = 3;
-    float domainWarpFrequency = 0.003f;
-    float domainWarpStrength = 32.0f;
+    // Domain warp - progressive (earth-like continents)
+    int domainWarpOctaves = 6;
+    float domainWarpFrequency = .0015f;
+    float domainWarpAmplitude = 250.0f;  // 200-300 is the 2024-2025 sweet spot
 
-    // Detail parameters
-    int detailOctaves = 3;
+    // Detail
+    int detailOctaves = 4;
     float detailLacunarity = 2.0f;
     float detailGain = 0.5f;
-    float detailFrequency = 0.01f;
+    float detailFrequency = 0.016f;
 
-    // Height generation parameters
-    float oceanDepthMultiplier = 40.0f;
-    float beachHeightMultiplier = 20.0f;
-    float landHeightMultiplier = 60.0f;
-    float mountainHeightMultiplier = 80.0f;
-    float hillHeightMultiplier = 8.0f;
-    float detailHeightMultiplier = 3.0f;
+    // Height multipliers - dramatic verticality
+    float oceanDepthMultiplier = 120.0f;
+    float beachHeightMultiplier = 35.0f;
+    float landHeightMultiplier = 160.0f;
+    float mountainHeightMultiplier = 350.0f;   // proper 300-400 block peaks
+    float hillHeightMultiplier = 45.0f;
+    float detailHeightMultiplier = 12.0f;
 
-    // Water level
-    int waterLevel = 48;
+    int waterLevel = 63;
 };
 
-/**
- * Advanced noise generation for smooth, realistic Minecraft/Tectonic-like terrain.
- *
- * This system uses FastNoiseLite to generate smooth Perlin/Simplex noise with:
- * - Multi-octave fractal noise (FBM)
- * - Domain warping for organic shapes
- * - Multiple noise layers (continentalness, erosion, peaks/valleys)
- */
 class TerrainNoise {
 public:
     explicit TerrainNoise(uint32_t seed = 1337u) : m_seed(seed) {
         initializeNoiseGenerators();
     }
 
-    // Access to parameters for runtime editing
     TerrainParams& getParams() { return m_params; }
     const TerrainParams& getParams() const { return m_params; }
-
-    // Call this after modifying parameters to rebuild noise generators
     void updateNoiseGenerators() { initializeNoiseGenerators(); }
 
-    /**
-     * Sample continentalness - determines ocean vs land and broad terrain shape.
-     * Returns value in [0, 1] where:
-     * - 0.0-0.3: Deep ocean
-     * - 0.3-0.45: Ocean/coast
-     * - 0.45-0.55: Beach/shore
-     * - 0.55-1.0: Land (increasing distance inland)
-     */
+    // NEW: shared method so Surface.cpp and sampleTerrainHeight use identical warp
+    void applyDomainWarp(float& x, float& z) const {
+        FastNoiseLite warpCopy(*m_domainWarp);
+        warpCopy.DomainWarp(x, z);
+    }
+
     float sampleContinentalness(float x, float z) const {
-        // Large-scale noise for broad continental features
-        float value = m_continentalness->GetNoise(x * 0.5f, z * 0.5f);
-        // Remap from [-1, 1] to [0, 1]
-        return (value + 1.0f) * 0.5f;
+        float v = m_continentalness->GetNoise(x, z);
+        return (v + 1.0f) * 0.5f;
     }
 
-    /**
-     * Sample erosion - determines flat vs mountainous terrain.
-     * Returns value in [0, 1] where:
-     * - 0.0-0.3: Highly eroded, mountainous, sharp peaks
-     * - 0.3-0.6: Medium erosion, hills and valleys
-     * - 0.6-1.0: Low erosion, flat plains
-     */
     float sampleErosion(float x, float z) const {
-        float value = m_erosion->GetNoise(x * 0.8f, z * 0.8f);
-        return (value + 1.0f) * 0.5f;
+        float v = m_erosion->GetNoise(x, z);
+        return (v + 1.0f) * 0.5f;
     }
 
-    /**
-     * Sample peaks and valleys - local height variations.
-     * Returns value in [0, 1] where higher = peaks, lower = valleys.
-     */
     float samplePeaksValleys(float x, float z) const {
-        float value = m_peaksValleys->GetNoise(x * 1.2f, z * 1.2f);
-        return (value + 1.0f) * 0.5f;
+        float v = m_peaksValleys->GetNoise(x, z);
+        return (v + 1.0f) * 0.5f;
     }
 
-    /**
-     * Sample domain warp offset for X coordinate.
-     * Adds organic, flowing character to terrain.
-     */
-    float sampleDomainWarpX(float x, float z) const {
-        return m_domainWarp->GetNoise(x * 0.3f, z * 0.3f) * m_params.domainWarpStrength;
-    }
-
-    /**
-     * Sample domain warp offset for Z coordinate.
-     */
-    float sampleDomainWarpZ(float x, float z) const {
-        // Use slightly offset seed for different warp pattern
-        return m_domainWarp->GetNoise(x * 0.3f + 1000.0f, z * 0.3f + 1000.0f) * m_params.domainWarpStrength;
-    }
-
-    /**
-     * Sample detailed noise for small-scale terrain features.
-     */
     float sampleDetail(float x, float z) const {
-        float value = m_detail->GetNoise(x * 2.0f, z * 2.0f);
-        return (value + 1.0f) * 0.5f;
+        float v = m_detail->GetNoise(x, z);
+        return (v + 1.0f) * 0.5f;
     }
 
-    /**
-     * Combined terrain height sampling with all noise layers and domain warping.
-     * Returns height value (can be negative for underwater terrain).
-     */
     float sampleTerrainHeight(float worldX, float worldZ) const {
-        // Apply domain warping first for organic shapes
-        float warpedX = worldX + sampleDomainWarpX(worldX, worldZ);
-        float warpedZ = worldZ + sampleDomainWarpZ(worldX, worldZ);
+        float warpedX = worldX;
+        float warpedZ = worldZ;
+        applyDomainWarp(warpedX, warpedZ);
 
-        // Sample all noise layers
-        float continentalness = sampleContinentalness(warpedX, warpedZ);
-        float erosion = sampleErosion(warpedX, warpedZ);
-        float peaksValleys = samplePeaksValleys(warpedX, warpedZ);
-        float detail = sampleDetail(worldX, worldZ);
+        float c = sampleContinentalness(warpedX, warpedZ);
+        float e = sampleErosion(warpedX, warpedZ);
+        float pv = samplePeaksValleys(warpedX, warpedZ);
+        float detail = sampleDetail(worldX, worldZ);  // fine detail stays unwarped
 
-        // Base height from continentalness
-        // Ocean areas have negative height, land areas positive
-        float baseHeight = 0.0f;
-        if (continentalness < 0.45f) {
-            // Ocean - gradually deepening
-            baseHeight = (continentalness - 0.45f) * m_params.oceanDepthMultiplier;
-        } else if (continentalness < 0.55f) {
-            // Beach/shore - slight elevation
-            baseHeight = (continentalness - 0.45f) * m_params.beachHeightMultiplier;
-        } else {
-            // Land - rising terrain
-            baseHeight = (continentalness - 0.55f) * m_params.landHeightMultiplier;
+        float height = 0.0f;
+
+        if (c < 0.45f) { // ocean
+            float f = (0.45f - c) / 0.45f;
+            height -= pow(f, 1.4f) * m_params.oceanDepthMultiplier;
+        } else if (c < 0.55f) { // beach
+            float f = (c - 0.45f) / 0.1f;
+            height += pow(f, 0.7f) * m_params.beachHeightMultiplier;
+        } else { // land
+            float f = (c - 0.55f) / 0.45f;
+            height += pow(f, 0.75f) * m_params.landHeightMultiplier;
         }
 
-        // Mountain height based on erosion (inverted - low erosion = flat, high erosion = mountains)
-        float mountainFactor = 0.0f;
-        if (erosion < 0.4f && continentalness > 0.5f) {
-            // Mountainous areas only on land
-            mountainFactor = (0.4f - erosion) / 0.4f; // 0 to 1
-            // Mountains get more dramatic with lower erosion
-            mountainFactor = mountainFactor * mountainFactor; // Square for sharper peaks
+        // Sharp tectonic mountains
+        float mountain = 0.0f;
+        if (e < 0.45f && c > 0.55f) {
+            mountain = (0.45f - e) / 0.45f;
+            mountain = mountain * mountain; // quadratic = very peaked
         }
 
-        // Peaks and valleys add local variation
-        float localHeight = (peaksValleys - 0.5f) * 2.0f; // -1 to 1
+        float local = (pv - 0.5f) * 2.0f; // -1..1
 
-        // Combine all factors
-        float totalHeight = baseHeight;
+        height += mountain * m_params.mountainHeightMultiplier * (local * 0.5f + 0.5f);
 
-        // Add mountain height (can be very tall)
-        totalHeight += mountainFactor * m_params.mountainHeightMultiplier * (localHeight * 0.5f + 0.5f);
-
-        // Add local variation (smaller scale)
-        if (mountainFactor < 0.5f) {
-            // In non-mountainous areas, add gentle rolling hills
-            totalHeight += localHeight * m_params.hillHeightMultiplier * (1.0f - mountainFactor);
+        if (mountain < 0.5f) {
+            height += local * m_params.hillHeightMultiplier * (1.0f - mountain * 2.0f);
         }
 
-        // Add fine detail
-        totalHeight += (detail - 0.5f) * m_params.detailHeightMultiplier;
+        height += (detail - 0.5f) * m_params.detailHeightMultiplier;
 
-        return totalHeight;
+        return height;
     }
 
 private:
     void initializeNoiseGenerators() {
-        // Continentalness - large scale, smooth
         m_continentalness = std::make_unique<FastNoiseLite>(m_seed);
         m_continentalness->SetNoiseType(FastNoiseLite::NoiseType_Perlin);
         m_continentalness->SetFractalType(FastNoiseLite::FractalType_FBm);
@@ -202,7 +139,6 @@ private:
         m_continentalness->SetFractalGain(m_params.continentalnessGain);
         m_continentalness->SetFrequency(m_params.continentalnessFrequency);
 
-        // Erosion - medium scale
         m_erosion = std::make_unique<FastNoiseLite>(m_seed + 1);
         m_erosion->SetNoiseType(FastNoiseLite::NoiseType_Perlin);
         m_erosion->SetFractalType(FastNoiseLite::FractalType_FBm);
@@ -211,23 +147,24 @@ private:
         m_erosion->SetFractalGain(m_params.erosionGain);
         m_erosion->SetFrequency(m_params.erosionFrequency);
 
-        // Peaks and valleys - local variation
+        // Ridged multifractal mountains
         m_peaksValleys = std::make_unique<FastNoiseLite>(m_seed + 2);
         m_peaksValleys->SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
-        m_peaksValleys->SetFractalType(FastNoiseLite::FractalType_FBm);
+        m_peaksValleys->SetFractalType(FastNoiseLite::FractalType_Ridged);
         m_peaksValleys->SetFractalOctaves(m_params.peaksValleysOctaves);
         m_peaksValleys->SetFractalLacunarity(m_params.peaksValleysLacunarity);
         m_peaksValleys->SetFractalGain(m_params.peaksValleysGain);
         m_peaksValleys->SetFrequency(m_params.peaksValleysFrequency);
 
-        // Domain warp - for organic shapes
+        // Progressive domain warp - the current gold standard
         m_domainWarp = std::make_unique<FastNoiseLite>(m_seed + 3);
         m_domainWarp->SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
-        m_domainWarp->SetFractalType(FastNoiseLite::FractalType_FBm);
+        m_domainWarp->SetDomainWarpType(FastNoiseLite::DomainWarpType_OpenSimplex2);
+        m_domainWarp->SetFractalType(FastNoiseLite::FractalType_DomainWarpProgressive);
         m_domainWarp->SetFractalOctaves(m_params.domainWarpOctaves);
         m_domainWarp->SetFrequency(m_params.domainWarpFrequency);
+        m_domainWarp->SetDomainWarpAmp(m_params.domainWarpAmplitude);  // <--- key parameter
 
-        // Detail - fine-scale features
         m_detail = std::make_unique<FastNoiseLite>(m_seed + 4);
         m_detail->SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
         m_detail->SetFractalType(FastNoiseLite::FractalType_FBm);

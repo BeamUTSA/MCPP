@@ -119,12 +119,12 @@ Chunk::Chunk(Chunk&& other) noexcept
     , m_vao(other.m_vao)
     , m_vbo(other.m_vbo)
     , m_ebo(other.m_ebo)
-    , m_indexCount(other.m_indexCount)
+    , m_vertexCount(other.m_vertexCount)
     , m_dirty(other.m_dirty) {
     other.m_vao = 0;
     other.m_vbo = 0;
     other.m_ebo = 0;
-    other.m_indexCount = 0;
+    other.m_vertexCount = 0;
 }
 
 Chunk& Chunk::operator=(Chunk&& other) noexcept {
@@ -138,13 +138,13 @@ Chunk& Chunk::operator=(Chunk&& other) noexcept {
         m_vao         = other.m_vao;
         m_vbo         = other.m_vbo;
         m_ebo         = other.m_ebo;
-        m_indexCount  = other.m_indexCount;
+        m_vertexCount  = other.m_vertexCount;
         m_dirty       = other.m_dirty;
 
         other.m_vao        = 0;
         other.m_vbo        = 0;
         other.m_ebo        = 0;
-        other.m_indexCount = 0;
+        other.m_vertexCount = 0;
     }
     return *this;
 }
@@ -159,7 +159,7 @@ void Chunk::generate(const SurfaceManager& surfaceManager) {
         waterId = waterBlock->id;
     }
 
-    constexpr int WATER_LEVEL = 48;
+    constexpr int WATER_LEVEL = 63;
 
     for (int x = 0; x < CHUNK_SIZE; ++x) {
         for (int z = 0; z < CHUNK_SIZE; ++z) {
@@ -330,9 +330,9 @@ void Chunk::buildMesh(const MinecraftApp& app, const MCPP::TextureAtlas& atlas) 
     // Build greedy mesh (merges faces before we touch any GL)
     Meshing::buildGreedyMesh(*this, app, vertices);
 
-    m_indexCount = static_cast<uint32_t>(vertices.size());
+    m_vertexCount = static_cast<uint32_t>(vertices.size());
 
-    if (m_indexCount == 0) {
+    if (m_vertexCount == 0) {
         m_dirty = false;
         return;
     }
@@ -383,9 +383,9 @@ void Chunk::buildMesh(const MinecraftApp& app, const MCPP::TextureAtlas& atlas) 
 }
 
 void Chunk::render() const {
-    if (m_indexCount == 0 || m_vao == 0) return;
+    if (m_vertexCount == 0 || m_vao == 0) return;
 
     glBindVertexArray(m_vao);
-    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(m_indexCount));
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(m_vertexCount));
     glBindVertexArray(0);
 }
