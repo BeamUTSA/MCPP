@@ -9,6 +9,7 @@
 
 using MCPP::BlockDatabase;
 using MCPP::BlockFace;
+using MCPP::UVCoords;
 
 namespace Meshing {
 
@@ -103,8 +104,18 @@ static void emitQuad(
     const auto& verts = fd.vertices;
     const glm::vec3 normal = fd.normal;
 
-    // Get texture coords (your existing logic)
-    const auto [uvMin, uvMax] = db.getBlockFaceUV(id, face);
+    // Get texture coords from the block database
+    const UVCoords uvCoords = db.getBlockFaceUV(id, face);
+    const glm::vec2 uvMin = uvCoords.min;
+    const glm::vec2 uvMax = uvCoords.max;
+
+    // Debug: Print UV coords for the first quad (remove this after debugging)
+    static bool printed = false;
+    if (!printed && id != 0) {
+        printf("Block ID %d, Face %d: UV min=(%.6f, %.6f) max=(%.6f, %.6f)\n",
+               id, static_cast<int>(face), uvMin.x, uvMin.y, uvMax.x, uvMax.y);
+        printed = true;
+    }
 
     // Simple AO (you can plug your full AO here)
     float ao[4] = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -126,9 +137,26 @@ static void emitQuad(
             pos.x = fixed + (face == BlockFace::East ? 1 : 0);
         }
 
-        glm::vec2 uv = (i == 0 || i == 3 || i == 5) ? uvMin : uvMax;
-        if (i == 1 || i == 4) uv.x = uvMax.x;
-        if (i == 2) uv = uvMax;
+        // Correctly map UV coordinates to quad corners
+        // Triangle 1: v0 (BL), v1 (BR), v2 (TR)
+        // Triangle 2: v3 (BL), v4 (TR), v5 (TL)
+        glm::vec2 uv;
+        switch(i) {
+            case 0: // Bottom-left (first triangle)
+            case 3: // Bottom-left (second triangle)
+                uv = glm::vec2(uvMin.x, uvMin.y);
+                break;
+            case 1: // Bottom-right
+                uv = glm::vec2(uvMax.x, uvMin.y);
+                break;
+            case 2: // Top-right (first triangle)
+            case 4: // Top-right (second triangle)
+                uv = glm::vec2(uvMax.x, uvMax.y);
+                break;
+            case 5: // Top-left
+                uv = glm::vec2(uvMin.x, uvMax.y);
+                break;
+        }
 
         float aoVal = ao[i % 4];
 
