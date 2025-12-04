@@ -132,7 +132,9 @@ static void emitQuad(
 
         float aoVal = ao[i % 4];
 
-        out.push_back({pos, normal, uv, glm::vec2(w, h), aoVal});
+        // Fixed: Use (1,1) for tileScale to avoid sampling outside atlas tile bounds
+        // Greedy quads should not tile textures - each quad uses the full tile from atlas
+        out.push_back({pos, normal, uv, glm::vec2(1.0f, 1.0f), aoVal});
     }
 }
 
