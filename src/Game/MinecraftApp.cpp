@@ -217,17 +217,6 @@ void MinecraftApp::renderFrame() {
     m_shader->setInt("blockAtlas", 0);
     m_textureAtlas.bind(0);
 
-    // Debug: Verify shader uniform and texture binding (print once)
-    static bool debugPrinted = false;
-    if (!debugPrinted) {
-        GLint currentProgram;
-        glGetIntegerv(GL_CURRENT_PROGRAM, &currentProgram);
-        GLint boundTexture;
-        glGetIntegerv(GL_TEXTURE_BINDING_2D, &boundTexture);
-        printf("Render: Using program %d, bound texture %d\n", currentProgram, boundTexture);
-        debugPrinted = true;
-    }
-
     glm::mat4 projection = m_camera.getProjectionMatrix(
         static_cast<float>(m_width),
         static_cast<float>(m_height)

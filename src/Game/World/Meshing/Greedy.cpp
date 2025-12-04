@@ -109,14 +109,6 @@ static void emitQuad(
     const glm::vec2 uvMin = uvCoords.min;
     const glm::vec2 uvMax = uvCoords.max;
 
-    // Debug: Print UV coords for the first quad (remove this after debugging)
-    static bool printed = false;
-    if (!printed && id != 0) {
-        printf("Block ID %d, Face %d: UV min=(%.6f, %.6f) max=(%.6f, %.6f)\n",
-               id, static_cast<int>(face), uvMin.x, uvMin.y, uvMax.x, uvMax.y);
-        printed = true;
-    }
-
     // Simple AO (you can plug your full AO here)
     float ao[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 

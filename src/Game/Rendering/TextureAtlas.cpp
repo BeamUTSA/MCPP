@@ -136,14 +136,6 @@ bool TextureAtlas::loadMapping(const std::string& path) {
 void TextureAtlas::bind(unsigned int unit) const {
     glActiveTexture(GL_TEXTURE0 + unit);
     glBindTexture(GL_TEXTURE_2D, m_textureID);
-
-    // Debug: Print texture binding info once
-    static bool printed = false;
-    if (!printed) {
-        printf("TextureAtlas::bind() - Binding texture ID %u to unit %u (GL_TEXTURE%u)\n",
-               m_textureID, unit, unit);
-        printed = true;
-    }
 }
 
 void TextureAtlas::unbind() {
