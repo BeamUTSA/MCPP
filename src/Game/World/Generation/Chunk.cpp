@@ -371,11 +371,17 @@ void Chunk::buildMesh(const MinecraftApp& app, const MCPP::TextureAtlas& atlas) 
                           (void*)offsetof(ChunkVertex, texCoord));
     glEnableVertexAttribArray(2);
 
-    // AO
-    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE,
+    // TileScale (vec2) - FIXED: was missing, causing mismatch with shader
+    glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE,
+                          sizeof(ChunkVertex),
+                          (void*)offsetof(ChunkVertex, tileScale));
+    glEnableVertexAttribArray(3);
+
+    // AO (float) - FIXED: was at location 3, should be at location 4
+    glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE,
                           sizeof(ChunkVertex),
                           (void*)offsetof(ChunkVertex, ao));
-    glEnableVertexAttribArray(3);
+    glEnableVertexAttribArray(4);
 
     glBindVertexArray(0);
 

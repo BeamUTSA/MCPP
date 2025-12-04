@@ -42,10 +42,17 @@ void ChunkManager::generationWorker() {
             m_generationQueue.pop();
         }
 
-        auto it = m_chunks.find(coords);
-        if (it == m_chunks.end()) continue;
+        // Thread-safe chunk access with m_chunkMutex
+        Chunk* chunkPtr = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(m_chunkMutex);
+            auto it = m_chunks.find(coords);
+            if (it == m_chunks.end()) continue;
+            chunkPtr = it->second.get();
+        }
 
-        it->second->generate(m_surfaceManager);
+        // Generate terrain outside the lock (safe - only modifies chunk's internal data)
+        chunkPtr->generate(m_surfaceManager);
 
         {
             std::lock_guard<std::mutex> lock(m_taskMutex);
@@ -68,13 +75,19 @@ void ChunkManager::meshingWorker() {
             m_meshingQueue.pop();
         }
 
-        auto it = m_chunks.find(coords);
-        if (it == m_chunks.end()) continue;
+        // Thread-safe chunk access with m_chunkMutex
+        const Chunk* chunkPtr = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(m_chunkMutex);
+            auto it = m_chunks.find(coords);
+            if (it == m_chunks.end()) continue;
+            chunkPtr = it->second.get();
+        }
 
+        // Build mesh outside the lock (read-only access to chunk data)
         std::vector<ChunkVertex> vertices;
         vertices.reserve(40 * 1024);
-
-        buildGreedyMesh(*it->second, m_app, vertices);
+        buildGreedyMesh(*chunkPtr, m_app, vertices);
 
         {
             std::lock_guard<std::mutex> lock(m_taskMutex);
@@ -84,7 +97,17 @@ void ChunkManager::meshingWorker() {
 }
 
 void ChunkManager::loadChunk(const glm::ivec3& chunkCoords) {
-    std::lock_guard<std::mutex> lock(m_taskMutex);
+    // Check if chunk exists (with chunk mutex)
+    {
+        std::lock_guard<std::mutex> lock(m_chunkMutex);
+        if (m_chunks.contains(chunkCoords)) return;
+    }
+
+    // Add to map and queue (need both locks, acquire in consistent order to avoid deadlock)
+    std::lock_guard<std::mutex> chunkLock(m_chunkMutex);
+    std::lock_guard<std::mutex> taskLock(m_taskMutex);
+
+    // Double-check after acquiring locks
     if (m_chunks.contains(chunkCoords)) return;
 
     auto chunk = std::make_unique<Chunk>(chunkCoords);
@@ -101,37 +124,47 @@ void ChunkManager::update(const glm::vec3& playerPosition) {
     std::vector<glm::ivec3> toUnload;
 
     // === LOAD NEW CHUNKS ===
-    for (int x = -renderDistance; x <= renderDistance; ++x) {
-        for (int z = -renderDistance; z <= renderDistance; ++z) {
-            glm::ivec3 coords(playerChunk.x + x, 0, playerChunk.z + z);
-            float dist = glm::distance(glm::vec2(coords.x, coords.z), glm::vec2(playerChunk.x, playerChunk.z));
+    {
+        std::lock_guard<std::mutex> lock(m_chunkMutex);
+        for (int x = -renderDistance; x <= renderDistance; ++x) {
+            for (int z = -renderDistance; z <= renderDistance; ++z) {
+                glm::ivec3 coords(playerChunk.x + x, 0, playerChunk.z + z);
+                float dist = glm::distance(glm::vec2(coords.x, coords.z), glm::vec2(playerChunk.x, playerChunk.z));
 
-            if (dist <= renderDistance) {
-                if (m_chunks.find(coords) == m_chunks.end()) {
-                    toLoad.push_back(coords);
+                if (dist <= renderDistance) {
+                    if (m_chunks.find(coords) == m_chunks.end()) {
+                        toLoad.push_back(coords);
+                    }
                 }
             }
         }
     }
 
     // === UNLOAD FAR CHUNKS ===
-    for (auto it = m_chunks.begin(); it != m_chunks.end(); ) {
-        float dist = glm::distance(glm::vec2(it->first.x, it->first.z), glm::vec2(playerChunk.x, playerChunk.z));
-        if (dist > renderDistance + 2) {
-            toUnload.push_back(it->first);
-            it = m_chunks.erase(it);
-        } else {
-            ++it;
+    {
+        std::lock_guard<std::mutex> lock(m_chunkMutex);
+        for (auto it = m_chunks.begin(); it != m_chunks.end(); ) {
+            float dist = glm::distance(glm::vec2(it->first.x, it->first.z), glm::vec2(playerChunk.x, playerChunk.z));
+            if (dist > renderDistance + 2) {
+                toUnload.push_back(it->first);
+                it = m_chunks.erase(it);
+            } else {
+                ++it;
+            }
         }
     }
 
     // === QUEUE NEW CHUNKS FOR GENERATION ===
-    {
-        std::lock_guard<std::mutex> lock(m_taskMutex);
+    if (!toLoad.empty()) {
+        std::lock_guard<std::mutex> chunkLock(m_chunkMutex);
+        std::lock_guard<std::mutex> taskLock(m_taskMutex);
         for (auto& coords : toLoad) {
-            auto chunk = std::make_unique<Chunk>(coords);
-            m_chunks[coords] = std::move(chunk);
-            m_generationQueue.push(coords);
+            // Double-check chunk doesn't exist (could have been added by another thread)
+            if (m_chunks.find(coords) == m_chunks.end()) {
+                auto chunk = std::make_unique<Chunk>(coords);
+                m_chunks[coords] = std::move(chunk);
+                m_generationQueue.push(coords);
+            }
         }
         m_taskCV.notify_all();
     }
@@ -147,17 +180,21 @@ void ChunkManager::update(const glm::vec3& playerPosition) {
             m_uploadQueue.pop();
         }
 
-        auto it = m_chunks.find(task.chunkCoords);
-        if (it != m_chunks.end()) {
-            it->second->uploadMesh(task.vertices);
-            it->second->markDirty(false);
-            ++i;
+        {
+            std::lock_guard<std::mutex> lock(m_chunkMutex);
+            auto it = m_chunks.find(task.chunkCoords);
+            if (it != m_chunks.end()) {
+                it->second->uploadMesh(task.vertices);
+                it->second->markDirty(false);
+                ++i;
+            }
         }
     }
 }
 
 void ChunkManager::reloadAllChunks() {
-    std::lock_guard<std::mutex> lock(m_taskMutex);
+    std::lock_guard<std::mutex> chunkLock(m_chunkMutex);
+    std::lock_guard<std::mutex> taskLock(m_taskMutex);
 
     // Clear queues
     std::queue<glm::ivec3> emptyQ; std::swap(m_generationQueue, emptyQ);
@@ -178,6 +215,7 @@ void ChunkManager::reloadAllChunks() {
 // RENDER ALL VISIBLE CHUNKS
 // ============================================================================
 void ChunkManager::render() const {
+    std::lock_guard<std::mutex> lock(m_chunkMutex);
     for (const auto& pair : m_chunks) {
         const auto& chunk = pair.second;
         if (chunk && chunk->hasGeometry()) {
@@ -194,6 +232,7 @@ uint8_t ChunkManager::getBlock(int x, int y, int z) const {
     const glm::ivec3 chunkCoords = getChunkCoords(glm::vec3(worldPos));
     const glm::ivec3 local = getBlockLocalCoords(glm::vec3(worldPos));
 
+    std::lock_guard<std::mutex> lock(m_chunkMutex);
     auto it = m_chunks.find(chunkCoords);
     if (it == m_chunks.end()) {
         return 0; // air
