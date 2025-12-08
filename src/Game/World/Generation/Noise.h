@@ -3,7 +3,7 @@
 
 #include <cstdint>
 #include <glm/glm.hpp>
-#include <FastNoiseLite.h>
+#include <cpp/FastNoiseLite.h>
 #include <memory>
 
 /**

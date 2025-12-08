@@ -117,7 +117,7 @@ void ChunkManager::loadChunk(const glm::ivec3& chunkCoords) {
 }
 
 void ChunkManager::update(const glm::vec3& playerPosition) {
-    const int renderDistance = 24;  // or make it a member
+    constexpr int renderDistance = 24;  // or make it a member
     const glm::ivec3 playerChunk = getChunkCoords(playerPosition);
 
     std::vector<glm::ivec3> toLoad;
